@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Dual Video Pose Analysis</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .upload-form {
+            border: 2px dashed #ccc;
+            padding: 20px;
+            margin-bottom: 30px;
+            border-radius: 5px;
+        }
+        .video-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+        .video-item {
+            border: 1px solid #eee;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        video {
+            width: 100%;
+            max-width: 500px;
+        }
+        .submit-btn {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        .submit-btn:hover {
+            background-color: #45a049;
+        }
+    </style>
+</head>
+<body>
+    <h1>Dual Video Pose Analysis</h1>
+    
+    <div class="upload-form">
+        <h2>Upload Videos</h2>
+        <form action="{{ url_for('upload_videos') }}" method="post" enctype="multipart/form-data">
+            <div>
+                <label for="video1">Video 1:</label><br>
+                <input type="file" id="video1" name="video1" accept=".mp4,.avi,.mov" required>
+            </div>
+            <div style="margin-top: 10px;">
+                <label for="video2">Video 2:</label><br>
+                <input type="file" id="video2" name="video2" accept=".mp4,.avi,.mov" required>
+            </div>
+            <button type="submit" class="submit-btn">Process Videos</button>
+        </form>
+    </div>
+
+    <h2>Processed Videos</h2>
+    <div class="video-grid">
+        {% for video in processed_videos %}
+        <div class="video-item">
+            <h3>{{ video }}</h3>
+            <video controls>
+                <source src="{{ url_for('serve_video', filename=video) }}" type="video/mp4">
+                Your browser does not support the video tag.
+            </video>
+        </div>
+        {% else %}
+        <p>No processed videos available.</p>
+        {% endfor %}
+    </div>
+
+    <script>
+        // Add form submission handling with loading state
+        document.querySelector('form').addEventListener('submit', function(e) {
+            const submitBtn = document.querySelector('.submit-btn');
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Processing...';
+        });
+    </script>
+</body>
+</html> 
