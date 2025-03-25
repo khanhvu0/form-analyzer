@@ -1,0 +1,7 @@
+[{"frame": 0, "timestamp": 0, "label": "Start", "confidence": 0.7891323917052325},
+{"frame": 90, "timestamp": 3, "label": "Ball Release", "confidence": 0.7891323917052325},
+{"frame": 150, "timestamp": 5, "label": "Trophy Position", "confidence": 0.7891323917052325},
+{"frame": 195, "timestamp": 6.5, "label": "Racket Low Point", "confidence": 0.7891323917052325},
+{"frame": 213, "timestamp": 7.1, "label": "Ball Impact", "confidence": 0.7891323917052325},
+{"frame": 240, "timestamp": 8, "label": "Follow Through", "confidence": 0.7891323917052325}
+]

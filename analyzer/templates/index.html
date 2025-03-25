@@ -41,6 +41,55 @@
         .submit-btn:hover {
             background-color: #45a049;
         }
+        .timeline {
+            width: 100%;
+            height: 40px;
+            background: #f0f0f0;
+            position: relative;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+        .timeline-marker {
+            position: absolute;
+            width: 12px;
+            height: 12px;
+            background: #4CAF50;
+            border-radius: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            cursor: pointer;
+        }
+        .timeline-marker:hover {
+            background: #45a049;
+            transform: translate(-50%, -50%) scale(1.2);
+        }
+        .timeline-marker::after {
+            content: attr(data-time);
+            position: absolute;
+            top: -20px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 12px;
+            white-space: nowrap;
+        }
+        .key-moments {
+            margin-top: 10px;
+            padding: 10px;
+            background: #f9f9f9;
+            border-radius: 4px;
+        }
+        .moment-btn {
+            margin: 5px;
+            padding: 5px 10px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+        .moment-btn:hover {
+            background: #45a049;
+        }
     </style>
 </head>
 <body>
@@ -66,10 +115,15 @@
         {% for video in processed_videos %}
         <div class="video-item">
             <h3>{{ video }}</h3>
-            <video controls>
+            <video id="video-{{ loop.index }}" controls>
                 <source src="{{ url_for('serve_video', filename=video) }}" type="video/mp4">
                 Your browser does not support the video tag.
             </video>
+            <div class="timeline" id="timeline-{{ loop.index }}"></div>
+            <div class="key-moments" id="moments-{{ loop.index }}">
+                <h4>Key Moments</h4>
+                <!-- Key moments will be populated here -->
+            </div>
         </div>
         {% else %}
         <p>No processed videos available.</p>
@@ -82,6 +136,60 @@
             const submitBtn = document.querySelector('.submit-btn');
             submitBtn.disabled = true;
             submitBtn.textContent = 'Processing...';
+        });
+
+        // Function to load and display key moments
+        async function loadKeyMoments(videoElement, timelineElement, momentsElement, videoName) {
+            try {
+                const response = await fetch(`/moments/${videoName}`);
+                const moments = await response.json();
+                
+                // Get video duration
+                const duration = videoElement.duration;
+                
+                // Clear existing markers
+                timelineElement.innerHTML = '';
+                momentsElement.innerHTML = '<h4>Key Moments</h4>';
+                
+                // Add markers and buttons for each moment
+                moments.forEach(moment => {
+                    // Add timeline marker
+                    const marker = document.createElement('div');
+                    marker.className = 'timeline-marker';
+                    marker.style.left = `${(moment.timestamp / duration) * 100}%`;
+                    marker.setAttribute('data-time', `${moment.timestamp.toFixed(1)}s`);
+                    marker.onclick = () => {
+                        videoElement.currentTime = moment.timestamp;
+                        videoElement.pause();
+                    };
+                    timelineElement.appendChild(marker);
+                    
+                    // Add moment button
+                    const button = document.createElement('button');
+                    button.className = 'moment-btn';
+                    button.textContent = moment.label;
+                    button.onclick = () => {
+                        videoElement.currentTime = moment.timestamp;
+                        videoElement.pause();
+                    };
+                    momentsElement.appendChild(button);
+                });
+            } catch (error) {
+                console.error('Error loading key moments:', error);
+            }
+        }
+
+        // Initialize key moments for each video
+        document.addEventListener('DOMContentLoaded', function() {
+            {% for video in processed_videos %}
+            const video{{ loop.index }} = document.getElementById('video-{{ loop.index }}');
+            const timeline{{ loop.index }} = document.getElementById('timeline-{{ loop.index }}');
+            const moments{{ loop.index }} = document.getElementById('moments-{{ loop.index }}');
+            
+            video{{ loop.index }}.addEventListener('loadedmetadata', function() {
+                loadKeyMoments(video{{ loop.index }}, timeline{{ loop.index }}, moments{{ loop.index }}, '{{ video }}');
+            });
+            {% endfor %}
         });
     </script>
 </body>
