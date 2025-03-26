@@ -6,10 +6,12 @@ import numpy as np
 from mmpose.apis import MMPoseInferencer
 from flask import Flask, request, render_template, send_from_directory, url_for, Response, jsonify
 from werkzeug.utils import secure_filename
+from flask_cors import CORS
 # Import ultralytics for YOLO
 from ultralytics import YOLO
 
 app = Flask(__name__)
+CORS(app)  # Enable CORS for all routes
 
 # Configure upload and output directories
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
