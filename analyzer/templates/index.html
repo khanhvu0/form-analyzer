@@ -72,6 +72,20 @@
             font-size: 12px;
             white-space: nowrap;
         }
+        .ball-marker {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background: #FFA500;
+            border-radius: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            cursor: pointer;
+        }
+        .ball-marker:hover {
+            background: #FF8C00;
+            transform: translate(-50%, -50%) scale(1.2);
+        }
         .key-moments {
             margin-top: 10px;
             padding: 10px;
@@ -89,6 +103,53 @@
         }
         .moment-btn:hover {
             background: #45a049;
+        }
+        .section-header {
+            margin-top: 30px;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+        }
+        .toggle-view-btn {
+            background-color: #2196F3;
+            color: white;
+            padding: 5px 10px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        .toggle-view-btn:hover {
+            background-color: #0b7dda;
+        }
+        .toggle-markers-btn {
+            background-color: #FF9800;
+            color: white;
+            padding: 5px 10px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+            font-size: 0.8em;
+        }
+        .toggle-markers-btn:hover {
+            background-color: #F57C00;
+        }
+        .legend {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+            font-size: 0.9em;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin-right: 15px;
+        }
+        .legend-color {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 5px;
         }
     </style>
 </head>
@@ -110,7 +171,7 @@
         </form>
     </div>
 
-    <h2>Processed Videos</h2>
+    <h2 class="section-header">Analyzed Videos</h2>
     <div class="video-grid">
         {% for video in processed_videos %}
         <div class="video-item">
@@ -119,7 +180,23 @@
                 <source src="{{ url_for('serve_video', filename=video) }}" type="video/mp4">
                 Your browser does not support the video tag.
             </video>
+            
+            <div class="legend">
+                <div class="legend-item">
+                    <div class="legend-color" style="background:#4CAF50"></div>
+                    <span>Key Moments</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background:#FFA500"></div>
+                    <span>Ball Detections</span>
+                </div>
+                <button class="toggle-markers-btn" onclick="toggleBallMarkersVisibility('{{ loop.index }}')">
+                    Toggle Ball Markers
+                </button>
+            </div>
+            
             <div class="timeline" id="timeline-{{ loop.index }}"></div>
+            
             <div class="key-moments" id="moments-{{ loop.index }}">
                 <h4>Key Moments</h4>
                 <!-- Key moments will be populated here -->
@@ -146,10 +223,6 @@
                 
                 // Get video duration
                 const duration = videoElement.duration;
-                
-                // Clear existing markers
-                timelineElement.innerHTML = '';
-                momentsElement.innerHTML = '<h4>Key Moments</h4>';
                 
                 // Add markers and buttons for each moment
                 moments.forEach(moment => {
@@ -179,7 +252,54 @@
             }
         }
 
-        // Initialize key moments for each video
+        // Function to load and display ball detections (only as timeline markers)
+        async function loadBallDetections(videoElement, timelineElement, videoName) {
+            try {
+                const response = await fetch(`/balls/${videoName}`);
+                const balls = await response.json();
+                
+                // Get video duration
+                const duration = videoElement.duration;
+                
+                // Add markers for each ball detection
+                balls.forEach(ball => {
+                    // Add timeline marker
+                    const marker = document.createElement('div');
+                    marker.className = 'ball-marker';
+                    marker.style.left = `${(ball.timestamp / duration) * 100}%`;
+                    marker.setAttribute('data-time', `${ball.timestamp.toFixed(1)}s`);
+                    marker.setAttribute('data-track', ball.track_id !== null ? ball.track_id : 'none');
+                    marker.onclick = () => {
+                        videoElement.currentTime = ball.timestamp;
+                        videoElement.pause();
+                    };
+                    timelineElement.appendChild(marker);
+                });
+            } catch (error) {
+                console.error('Error loading ball detections:', error);
+            }
+        }
+        
+        // Function to toggle visibility of all ball markers
+        function toggleBallMarkersVisibility(index) {
+            const timeline = document.getElementById(`timeline-${index}`);
+            const markers = timeline.querySelectorAll('.ball-marker');
+            
+            // Check if any marker is hidden
+            let anyHidden = false;
+            markers.forEach(marker => {
+                if (marker.style.display === 'none') {
+                    anyHidden = true;
+                }
+            });
+            
+            // Toggle visibility
+            markers.forEach(marker => {
+                marker.style.display = anyHidden ? 'block' : 'none';
+            });
+        }
+
+        // Initialize data for each video
         document.addEventListener('DOMContentLoaded', function() {
             {% for video in processed_videos %}
             const video{{ loop.index }} = document.getElementById('video-{{ loop.index }}');
@@ -187,7 +307,12 @@
             const moments{{ loop.index }} = document.getElementById('moments-{{ loop.index }}');
             
             video{{ loop.index }}.addEventListener('loadedmetadata', function() {
+                // Clear the timeline first
+                timeline{{ loop.index }}.innerHTML = '';
+                
+                // Load both pose key moments and ball detections on the timeline
                 loadKeyMoments(video{{ loop.index }}, timeline{{ loop.index }}, moments{{ loop.index }}, '{{ video }}');
+                loadBallDetections(video{{ loop.index }}, timeline{{ loop.index }}, '{{ video }}');
             });
             {% endfor %}
         });
