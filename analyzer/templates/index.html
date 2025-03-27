@@ -19,6 +19,7 @@
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
             gap: 20px;
+            margin-top: 20px;
         }
         .video-item {
             border: 1px solid #eee;
@@ -40,6 +41,10 @@
         }
         .submit-btn:hover {
             background-color: #45a049;
+        }
+        .submit-btn:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
         }
         .timeline {
             width: 100%;
@@ -151,6 +156,31 @@
             border-radius: 50%;
             margin-right: 5px;
         }
+        .loading {
+            display: none;
+            text-align: center;
+            margin: 20px 0;
+        }
+        .error-message {
+            color: red;
+            margin: 10px 0;
+            display: none;
+        }
+        .video-preview {
+            margin-top: 10px;
+            max-width: 300px;
+            display: none;
+        }
+        .video-preview video {
+            width: 100%;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+        }
+        .preview-label {
+            font-size: 0.9em;
+            color: #666;
+            margin-top: 5px;
+        }
     </style>
 </head>
 <body>
@@ -158,30 +188,46 @@
     
     <div class="upload-form">
         <h2>Upload Videos</h2>
-        <form action="{{ url_for('upload_videos') }}" method="post" enctype="multipart/form-data">
+        <form id="uploadForm" enctype="multipart/form-data">
             <div>
                 <label for="video1">Video 1:</label><br>
                 <input type="file" id="video1" name="video1" accept=".mp4,.avi,.mov" required>
+                <div id="preview1" class="video-preview"></div>
             </div>
             <div style="margin-top: 10px;">
                 <label for="video2">Video 2:</label><br>
                 <input type="file" id="video2" name="video2" accept=".mp4,.avi,.mov" required>
+                <div id="preview2" class="video-preview"></div>
             </div>
             <button type="submit" class="submit-btn">Process Videos</button>
         </form>
+        <div class="loading" id="loading">Processing videos... Please wait.</div>
+        <div class="error-message" id="error"></div>
     </div>
 
-    <h2 class="section-header">Analyzed Videos</h2>
-    <div class="video-grid">
-        {% for video in processed_videos %}
-        <div class="video-item">
-            <h3>{{ video }}</h3>
-            <video id="video-{{ loop.index }}" controls>
-                <source src="{{ url_for('serve_video', filename=video) }}" type="video/mp4">
-                Your browser does not support the video tag.
-            </video>
+    <div id="videoContainer" class="video-grid">
+        <!-- Videos will be added here dynamically -->
+    </div>
+
+    <script>
+        // Function to create a video element with timeline and key moments
+        function createVideoElement(videoData) {
+            const videoItem = document.createElement('div');
+            videoItem.className = 'video-item';
             
-            <div class="legend">
+            const title = document.createElement('h3');
+            title.textContent = videoData.label;
+            videoItem.appendChild(title);
+            
+            const video = document.createElement('video');
+            video.id = `video-${videoData.name}`;
+            video.controls = true;
+            video.src = `/video/${videoData.name}`;
+            videoItem.appendChild(video);
+            
+            const legend = document.createElement('div');
+            legend.className = 'legend';
+            legend.innerHTML = `
                 <div class="legend-item">
                     <div class="legend-color" style="background:#4CAF50"></div>
                     <span>Key Moments</span>
@@ -190,31 +236,26 @@
                     <div class="legend-color" style="background:#FFA500"></div>
                     <span>Ball Detections</span>
                 </div>
-                <button class="toggle-markers-btn" onclick="toggleBallMarkersVisibility('{{ loop.index }}')">
+                <button class="toggle-markers-btn" onclick="toggleBallMarkersVisibility('${videoData.name}')">
                     Toggle Ball Markers
                 </button>
-            </div>
+            `;
+            videoItem.appendChild(legend);
             
-            <div class="timeline" id="timeline-{{ loop.index }}"></div>
+            const timeline = document.createElement('div');
+            timeline.className = 'timeline';
+            timeline.id = `timeline-${videoData.name}`;
+            videoItem.appendChild(timeline);
             
-            <div class="key-moments" id="moments-{{ loop.index }}">
-                <h4>Key Moments</h4>
-                <!-- Key moments will be populated here -->
-            </div>
-        </div>
-        {% else %}
-        <p>No processed videos available.</p>
-        {% endfor %}
-    </div>
-
-    <script>
-        // Add form submission handling with loading state
-        document.querySelector('form').addEventListener('submit', function(e) {
-            const submitBtn = document.querySelector('.submit-btn');
-            submitBtn.disabled = true;
-            submitBtn.textContent = 'Processing...';
-        });
-
+            const keyMoments = document.createElement('div');
+            keyMoments.className = 'key-moments';
+            keyMoments.id = `moments-${videoData.name}`;
+            keyMoments.innerHTML = '<h4>Key Moments</h4>';
+            videoItem.appendChild(keyMoments);
+            
+            return videoItem;
+        }
+        
         // Function to load and display key moments
         async function loadKeyMoments(videoElement, timelineElement, momentsElement, videoName) {
             try {
@@ -251,8 +292,8 @@
                 console.error('Error loading key moments:', error);
             }
         }
-
-        // Function to load and display ball detections (only as timeline markers)
+        
+        // Function to load and display ball detections
         async function loadBallDetections(videoElement, timelineElement, videoName) {
             try {
                 const response = await fetch(`/balls/${videoName}`);
@@ -263,7 +304,6 @@
                 
                 // Add markers for each ball detection
                 balls.forEach(ball => {
-                    // Add timeline marker
                     const marker = document.createElement('div');
                     marker.className = 'ball-marker';
                     marker.style.left = `${(ball.timestamp / duration) * 100}%`;
@@ -280,12 +320,11 @@
             }
         }
         
-        // Function to toggle visibility of all ball markers
-        function toggleBallMarkersVisibility(index) {
-            const timeline = document.getElementById(`timeline-${index}`);
+        // Function to toggle visibility of ball markers
+        function toggleBallMarkersVisibility(videoName) {
+            const timeline = document.getElementById(`timeline-${videoName}`);
             const markers = timeline.querySelectorAll('.ball-marker');
             
-            // Check if any marker is hidden
             let anyHidden = false;
             markers.forEach(marker => {
                 if (marker.style.display === 'none') {
@@ -293,28 +332,110 @@
                 }
             });
             
-            // Toggle visibility
             markers.forEach(marker => {
                 marker.style.display = anyHidden ? 'block' : 'none';
             });
         }
-
-        // Initialize data for each video
-        document.addEventListener('DOMContentLoaded', function() {
-            {% for video in processed_videos %}
-            const video{{ loop.index }} = document.getElementById('video-{{ loop.index }}');
-            const timeline{{ loop.index }} = document.getElementById('timeline-{{ loop.index }}');
-            const moments{{ loop.index }} = document.getElementById('moments-{{ loop.index }}');
+        
+        // Handle form submission
+        document.getElementById('uploadForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
             
-            video{{ loop.index }}.addEventListener('loadedmetadata', function() {
-                // Clear the timeline first
-                timeline{{ loop.index }}.innerHTML = '';
+            const formData = new FormData(this);
+            const submitBtn = document.querySelector('.submit-btn');
+            const loading = document.getElementById('loading');
+            const error = document.getElementById('error');
+            const videoContainer = document.getElementById('videoContainer');
+            
+            // Show loading state
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Processing...';
+            loading.style.display = 'block';
+            error.style.display = 'none';
+            
+            try {
+                const response = await fetch('/upload', {
+                    method: 'POST',
+                    body: formData
+                });
                 
-                // Load both pose key moments and ball detections on the timeline
-                loadKeyMoments(video{{ loop.index }}, timeline{{ loop.index }}, moments{{ loop.index }}, '{{ video }}');
-                loadBallDetections(video{{ loop.index }}, timeline{{ loop.index }}, '{{ video }}');
-            });
-            {% endfor %}
+                const result = await response.json();
+                
+                if (result.status === 'success') {
+                    // Clear previous videos
+                    videoContainer.innerHTML = '';
+                    
+                    // Add new videos
+                    result.videos.forEach(videoData => {
+                        const videoElement = createVideoElement(videoData);
+                        videoContainer.appendChild(videoElement);
+                        
+                        // Initialize video data when loaded
+                        const video = document.getElementById(`video-${videoData.name}`);
+                        video.addEventListener('loadedmetadata', function() {
+                            const timeline = document.getElementById(`timeline-${videoData.name}`);
+                            const moments = document.getElementById(`moments-${videoData.name}`);
+                            
+                            // Clear the timeline first
+                            timeline.innerHTML = '';
+                            
+                            // Load both pose key moments and ball detections
+                            loadKeyMoments(video, timeline, moments, videoData.name);
+                            loadBallDetections(video, timeline, videoData.name);
+                        });
+                    });
+                } else {
+                    error.textContent = result.message;
+                    error.style.display = 'block';
+                }
+            } catch (error) {
+                error.textContent = 'Error processing videos. Please try again.';
+                error.style.display = 'block';
+            } finally {
+                // Reset form and loading state
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Process Videos';
+                loading.style.display = 'none';
+                this.reset();
+            }
+        });
+
+        // Add this function to handle video preview
+        function handleVideoPreview(input, previewId) {
+            const preview = document.getElementById(previewId);
+            const file = input.files[0];
+            
+            if (file) {
+                const video = document.createElement('video');
+                video.controls = true;
+                video.style.maxWidth = '100%';
+                
+                const label = document.createElement('div');
+                label.className = 'preview-label';
+                label.textContent = file.name;
+                
+                preview.innerHTML = '';
+                preview.appendChild(video);
+                preview.appendChild(label);
+                preview.style.display = 'block';
+                
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    video.src = e.target.result;
+                }
+                reader.readAsDataURL(file);
+            } else {
+                preview.style.display = 'none';
+            }
+        }
+
+        // Add event listeners for video preview
+        document.getElementById('video1').addEventListener('change', function() {
+            handleVideoPreview(this, 'preview1');
+        });
+
+        document.getElementById('video2').addEventListener('change', function() {
+            handleVideoPreview(this, 'preview2');
         });
     </script>
 </body>
