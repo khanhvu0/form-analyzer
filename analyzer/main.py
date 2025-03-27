@@ -14,6 +14,7 @@ from werkzeug.utils import secure_filename
 from video_processor import VideoProcessor
 
 app = Flask(__name__)
+CORS(app)  # Enable CORS for all routes
 
 # Configure upload and output directories
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
