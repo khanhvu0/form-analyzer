@@ -84,6 +84,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ url, label, videoName }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [keyMoments, setKeyMoments] = useState<KeyMoment[]>([]);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [videoDuration, setVideoDuration] = useState<number>(0);
 
   useEffect(() => {
     const loadData = async () => {
@@ -98,6 +99,22 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ url, label, videoName }) => {
 
     loadData();
   }, [videoName]);
+
+  // Handle video duration
+  useEffect(() => {
+    if (videoRef.current) {
+      const handleLoadedMetadata = () => {
+        setVideoDuration(videoRef.current?.duration || 0);
+      };
+
+      videoRef.current.addEventListener('loadedmetadata', handleLoadedMetadata);
+      return () => {
+        if (videoRef.current) {
+          videoRef.current.removeEventListener('loadedmetadata', handleLoadedMetadata);
+        }
+      };
+    }
+  }, [url]);
 
   const handleMarkerClick = (timestamp: number) => {
     if (videoRef.current) {
@@ -160,9 +177,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ url, label, videoName }) => {
           <KeyMomentMarker
             key={`${moment.frame}-${moment.label}`}
             style={{
-              left: `${
-                (moment.timestamp / (videoRef.current?.duration || 1)) * 100
-              }%`,
+              left: `${(moment.timestamp / videoDuration) * 100}%`,
             }}
             onClick={() => handleMarkerClick(moment.timestamp)}
             title={`${moment.label} at ${moment.timestamp.toFixed(1)}s`}

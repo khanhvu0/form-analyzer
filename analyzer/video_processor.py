@@ -107,7 +107,9 @@ class VideoProcessor:
             source=video_path,
             save=False,
             classes=32,  # Tennis ball class
-            conf=0.3,
+            conf=0.25,   # Slightly lower threshold to catch more balls
+            iou=0.45,    # Intersection over Union threshold
+            max_det=10,  # Maximum detections per frame
             tracker="bytetrack.yaml",
             stream=True,  # Enable streaming mode
             verbose=False  # Disable progress messages
@@ -153,7 +155,9 @@ class VideoProcessor:
             source=video_path,
             save=False,
             classes=38,  # Racket class
-            conf=0.3,
+            conf=0.25,   # Slightly lower threshold to catch more rackets
+            iou=0.45,    # Intersection over Union threshold
+            max_det=10,  # Maximum detections per frame
             tracker="bytetrack.yaml",
             stream=True  # Enable streaming mode
         )
@@ -222,11 +226,20 @@ class VideoProcessor:
             # Get pose visualization video path
             temp_video_path = os.path.join(temp_dir, vis_files[0])
             
+            # Detect balls and rackets
+            ball_detections = self.detect_balls(video_path, fps)
+            racket_detections = self.detect_rackets(video_path, fps)
+            
+            # Add detection boxes for debugging
+            print("Adding ball and racket detection boxes for debugging...")
+            debug_video_path = os.path.join(temp_dir, "debug_detections.mp4")
+            self._add_detection_boxes(temp_video_path, debug_video_path, ball_detections, racket_detections, fps)
+            
             # Create a temporary file for re-encoding
             temp_output = os.path.join(temp_dir, "temp_output.mp4")
             
             # Re-encode the video to ensure compatibility
-            self.reencode_video(temp_video_path, temp_output)
+            self.reencode_video(debug_video_path, temp_output)
             
             # Check if temp output is valid before copying
             if not self.check_video_file(temp_output):
@@ -260,10 +273,6 @@ class VideoProcessor:
                 os.remove(temp_output)
             except:
                 pass
-
-            # Detect balls and rackets
-            ball_detections = self.detect_balls(video_path, fps)
-            racket_detections = self.detect_rackets(video_path, fps)
 
             # Detect key moments
             key_moments = detect_key_moments(
@@ -334,3 +343,67 @@ class VideoProcessor:
         except Exception as e:
             print(f"Error validating video file {video_path}: {str(e)}")
             return False
+
+    def _add_detection_boxes(self, input_path, output_path, ball_detections, racket_detections, fps):
+        """Add detection boxes for tennis balls and rackets directly on the video frames for debugging."""
+        cap = cv2.VideoCapture(input_path)
+        width, height, _ = self.get_video_info(input_path)
+        
+        out = cv2.VideoWriter(output_path, cv2.VideoWriter_fourcc(*'mp4v'), fps, (width, height))
+        
+        # Create frame lookup dictionaries for quick access
+        ball_lookup = {}
+        for ball in ball_detections:
+            frame = ball["frame"]
+            if frame not in ball_lookup:
+                ball_lookup[frame] = []
+            ball_lookup[frame].append(ball)
+            
+        racket_lookup = {}
+        for racket in racket_detections:
+            frame = racket["frame"]
+            if frame not in racket_lookup:
+                racket_lookup[frame] = []
+            racket_lookup[frame].append(racket)
+        
+        frame_idx = 0
+        while True:
+            ret, frame = cap.read()
+            if not ret:
+                break
+            
+            # Add ball detections for this frame
+            if frame_idx in ball_lookup:
+                for ball_detection in ball_lookup[frame_idx]:
+                    x1, y1, x2, y2 = ball_detection["bbox"]
+                    conf = ball_detection["confidence"]
+                    
+                    # Draw bounding box
+                    cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 0, 255), 2)
+                    
+                    # Add label and confidence
+                    label = f"Ball: {conf:.2f}"
+                    cv2.putText(frame, label, (x1, y1-10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
+            
+            # Add racket detections for this frame
+            if frame_idx in racket_lookup:
+                for racket_detection in racket_lookup[frame_idx]:
+                    x1, y1, x2, y2 = racket_detection["bbox"]
+                    conf = racket_detection["confidence"]
+                    
+                    # Draw bounding box
+                    cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
+                    
+                    # Add label and confidence
+                    label = f"Racket: {conf:.2f}"
+                    cv2.putText(frame, label, (x1, y1-10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+            
+            # Add frame counter for debugging
+            cv2.putText(frame, f"Frame: {frame_idx}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
+            
+            out.write(frame)
+            frame_idx += 1
+        
+        cap.release()
+        out.release()
+        print(f"Debugging visualization saved to: {output_path} with {frame_idx} frames processed")
