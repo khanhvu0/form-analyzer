@@ -1,4 +1,5 @@
 from flask import Flask, request, jsonify, send_file, Response, send_from_directory
+from flask_cors import CORS
 import os
 import cv2
 import shutil
@@ -12,6 +13,7 @@ app = Flask(
     static_folder="./frontend/dist",  # Vite's default build output directory
     static_url_path="",
 )
+CORS(app)  # Enable CORS for all routes
 
 # Configure upload and output directories
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -49,7 +51,15 @@ def send_file_partial(path):
     """Support for range requests - important for video streaming."""
     range_header = request.headers.get("Range", None)
     if not range_header:
-        return send_from_directory(app.config["OUTPUT_FOLDER"], os.path.basename(path))
+        # Make sure the mimetype and content-type are set explicitly
+        response = send_from_directory(
+            app.config["OUTPUT_FOLDER"], 
+            os.path.basename(path), 
+            mimetype="video/mp4",
+            as_attachment=False
+        )
+        response.headers.add("Accept-Ranges", "bytes")
+        return response
 
     size = os.path.getsize(path)
     byte1, byte2 = 0, None
@@ -77,6 +87,10 @@ def send_file_partial(path):
     )
     rv.headers.add("Content-Range", f"bytes {byte1}-{byte2}/{size}")
     rv.headers.add("Accept-Ranges", "bytes")
+    # Add cache control headers to prevent caching issues
+    rv.headers.add("Cache-Control", "no-cache, no-store, must-revalidate")
+    rv.headers.add("Pragma", "no-cache")
+    rv.headers.add("Expires", "0")
     return rv
 
 
@@ -167,8 +181,17 @@ def upload_videos():
 @app.route("/api/video/<filename>")
 def serve_video(filename):
     """Serve processed video files with range request support."""
-    path = os.path.join(app.config["OUTPUT_FOLDER"], filename)
-    return send_file_partial(path)
+    try:
+        # Ensure the file exists
+        path = os.path.join(app.config["OUTPUT_FOLDER"], filename)
+        if not os.path.exists(path):
+            return jsonify({"error": "Video file not found"}), 404
+            
+        # Use the send_file_partial function for proper streaming support
+        return send_file_partial(path)
+    except Exception as e:
+        print(f"Error serving video {filename}: {str(e)}")
+        return jsonify({"error": str(e)}), 500
 
 
 @app.route("/api/moments/<video_name>")
@@ -204,4 +227,13 @@ def get_balls(video_name):
 
 
 if __name__ == "__main__":
+    # Ensure output directory exists with proper permissions
+    os.makedirs(OUTPUT_FOLDER, exist_ok=True)
+    print(f"Output folder: {OUTPUT_FOLDER}")
+    
+    # List existing output files
+    if os.path.exists(OUTPUT_FOLDER):
+        output_files = os.listdir(OUTPUT_FOLDER)
+        print(f"Found {len(output_files)} files in output directory")
+    
     app.run(debug=True, host="0.0.0.0", port=5000)

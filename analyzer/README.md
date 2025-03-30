@@ -1,4 +1,4 @@
-set up for windows:
+# Set up backend for windows:
 
 download cuda 11.8: https://developer.nvidia.com/cuda-11-8-0-download-archive
 
@@ -11,12 +11,15 @@ mim install mmengine
 mim install "mmcv==2.0.1"
 mim install "mmdet>=3.1.0"
 
+cd mmpose
 pip install -r requirements.txt
 pip install -v -e .
 mim download mmpose --config td-hm_hrnet-w48_8xb32-210e_coco-256x192  --dest .
 
 download ffmpeg: choco install ffmpeg
 
+cd analyzer
+pip install -r requirements.txt
 python main.py
 
 # Frontend Setup
@@ -45,3 +48,23 @@ The frontend will be available at http://localhost:5173 (or another port if 5173
 - Modern responsive design
 
 Note: Make sure you have Node.js (v16 or later) installed on your system before running the frontend.
+
+03/29 22:40:31 - mmengine - INFO - the output video has been saved at C:\Users\quanv\mmpose\mmpose\analyzer\output\temp_alcaraz_test\alcaraz_test.mp4
+Re-encoding video from C:\Users\quanv\mmpose\mmpose\analyzer\output\temp_alcaraz_test\alcaraz_test.mp4 to C:\Users\quanv\mmpose\mmpose\analyzer\output\temp_alcaraz_test\temp_output.mp4
+
+Failed to load OpenH264 library: openh264-1.8.0-win64.dll
+        Please check environment and/or download library: https://github.com/cisco/openh264/releases
+
+[libopenh264 @ 000001b31af0c980] Incorrect library version loaded
+[ERROR:0@37.027] global cap_ffmpeg_impl.hpp:3264 open Could not open codec libopenh264, error: Unspecified error (-22)      
+[ERROR:0@37.027] global cap_ffmpeg_impl.hpp:3281 open VIDEOIO/FFMPEG: Failed to initialize VideoWriter
+Video re-encoding completed
+Saved processed video to: C:\Users\quanv\mmpose\mmpose\analyzer\output\alcaraz_test_pose.mp4
+
+03/29 22:41:56 - mmengine - INFO - the output video has been saved at C:\Users\quanv\mmpose\mmpose\analyzer\output\temp_djokovic_test\djokovic_test.mp4
+Re-encoding video from C:\Users\quanv\mmpose\mmpose\analyzer\output\temp_djokovic_test\djokovic_test.mp4 to C:\Users\quanv\mmpose\mmpose\analyzer\output\temp_djokovic_test\temp_output.mp4
+[libopenh264 @ 000001b3a38d29c0] Incorrect library version loaded
+[ERROR:0@121.178] global cap_ffmpeg_impl.hpp:3264 open Could not open codec libopenh264, error: Unspecified error (-22)     
+[ERROR:0@121.179] global cap_ffmpeg_impl.hpp:3281 open VIDEOIO/FFMPEG: Failed to initialize VideoWriter
+Video re-encoding completed
+Saved processed video to: C:\Users\quanv\mmpose\mmpose\analyzer\output\djokovic_test_pose.mp4

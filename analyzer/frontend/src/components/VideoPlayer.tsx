@@ -25,14 +25,6 @@ interface KeyMoment {
   }>;
 }
 
-interface BallDetection {
-  frame: number;
-  timestamp: number;
-  bbox: number[];
-  track_id: number | null;
-  confidence: number;
-}
-
 interface VideoPlayerProps {
   url: string;
   label: string;
@@ -68,13 +60,6 @@ const KeyMomentMarker = styled(TimelineMarker)({
   },
 });
 
-const BallMarker = styled(TimelineMarker)({
-  background: "#FFA500",
-  "&:hover": {
-    background: "#FF8C00",
-  },
-});
-
 const Legend = styled("div")({
   display: "flex",
   alignItems: "center",
@@ -98,23 +83,14 @@ const LegendColor = styled("div")({
 const VideoPlayer: React.FC<VideoPlayerProps> = ({ url, label, videoName }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [keyMoments, setKeyMoments] = useState<KeyMoment[]>([]);
-  const [ballDetections, setBallDetections] = useState<BallDetection[]>([]);
-  const [showBallMarkers, setShowBallMarkers] = useState(true);
   const [isPlaying, setIsPlaying] = useState(false);
 
   useEffect(() => {
     const loadData = async () => {
       try {
-        const [momentsResponse, ballsResponse] = await Promise.all([
-          fetch(`/api/moments/${videoName}`),
-          fetch(`/api/balls/${videoName}`),
-        ]);
-
+        const momentsResponse = await fetch(`/api/moments/${videoName}`);
         const moments = await momentsResponse.json();
-        const balls = await ballsResponse.json();
-
         setKeyMoments(moments);
-        setBallDetections(balls);
       } catch (error) {
         console.error("Error loading video data:", error);
       }
@@ -177,17 +153,6 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ url, label, videoName }) => {
           <LegendColor sx={{ background: "#4CAF50" }} />
           <span>Key Moments</span>
         </LegendItem>
-        <LegendItem>
-          <LegendColor sx={{ background: "#FFA500" }} />
-          <span>Ball Detections</span>
-        </LegendItem>
-        <Button
-          size="small"
-          onClick={() => setShowBallMarkers(!showBallMarkers)}
-          sx={{ ml: "auto" }}
-        >
-          {showBallMarkers ? "Hide" : "Show"} Ball Markers
-        </Button>
       </Legend>
 
       <Timeline>
@@ -203,19 +168,6 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ url, label, videoName }) => {
             title={`${moment.label} at ${moment.timestamp.toFixed(1)}s`}
           />
         ))}
-        {showBallMarkers &&
-          ballDetections.map((ball) => (
-            <BallMarker
-              key={`${ball.frame}-${ball.track_id}`}
-              style={{
-                left: `${
-                  (ball.timestamp / (videoRef.current?.duration || 1)) * 100
-                }%`,
-              }}
-              onClick={() => handleMarkerClick(ball.timestamp)}
-              title={`Ball at ${ball.timestamp.toFixed(1)}s`}
-            />
-          ))}
       </Timeline>
 
       <Box sx={{ mt: 2 }}>

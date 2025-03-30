@@ -1,6 +1,7 @@
 import os
 import cv2
 import numpy as np
+import shutil
 from ultralytics import YOLO
 from mmpose.apis import MMPoseInferencer
 from key_moment_detector import detect_key_moments
@@ -27,6 +28,78 @@ class VideoProcessor:
         cap.release()
         return fps
 
+    def get_video_info(self, video_path):
+        """Get video information including width, height, and FPS."""
+        cap = cv2.VideoCapture(video_path)
+        width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+        height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        fps = int(cap.get(cv2.CAP_PROP_FPS))
+        cap.release()
+        return width, height, fps
+
+    def reencode_video(self, input_path, output_path):
+        """Re-encode video to ensure compatibility."""
+        print(f"Re-encoding video from {input_path} to {output_path}")
+        
+        # Try to use FFMPEG if available for better compatibility
+        try:
+            import subprocess
+            ffmpeg_cmd = f'ffmpeg -i "{input_path}" -c:v libx264 -preset medium -crf 23 -y "{output_path}"'
+            print(f"Attempting to use FFMPEG: {ffmpeg_cmd}")
+            result = subprocess.run(ffmpeg_cmd, shell=True, capture_output=True, text=True)
+            
+            if result.returncode == 0:
+                print("FFMPEG encoding completed successfully")
+                return
+            else:
+                print(f"FFMPEG encoding failed: {result.stderr}")
+                print("Falling back to OpenCV encoding...")
+        except Exception as e:
+            print(f"Error using FFMPEG: {str(e)}")
+            print("Falling back to OpenCV encoding...")
+        
+        # Fallback to OpenCV encoding
+        cap = cv2.VideoCapture(input_path)
+        width, height, fps = self.get_video_info(input_path)
+        
+        # Try different codecs in order of preference
+        codecs = ['mp4v', 'XVID']
+        success = False
+        
+        for codec in codecs:
+            try:
+                print(f"Trying codec: {codec}")
+                fourcc = cv2.VideoWriter_fourcc(*codec)
+                out = cv2.VideoWriter(output_path, fourcc, fps, (width, height))
+                
+                if out.isOpened():
+                    # Process frames
+                    frame_count = 0
+                    while True:
+                        ret, frame = cap.read()
+                        if not ret:
+                            break
+                        out.write(frame)
+                        frame_count += 1
+                    
+                    success = True
+                    print(f"Successfully encoded {frame_count} frames using codec {codec}")
+                    break
+                else:
+                    print(f"Could not open VideoWriter with codec {codec}")
+            except Exception as e:
+                print(f"Error with codec {codec}: {str(e)}")
+            finally:
+                if 'out' in locals() and out is not None:
+                    out.release()
+                
+        cap.release()
+        
+        if success:
+            print("Video re-encoding completed")
+        else:
+            print("WARNING: All encoding attempts failed")
+
     def detect_balls(self, video_path, fps):
         """Detect tennis balls in the video."""
         print("Processing tennis ball detection...")
@@ -36,6 +109,8 @@ class VideoProcessor:
             classes=32,  # Tennis ball class
             conf=0.3,
             tracker="bytetrack.yaml",
+            stream=True,  # Enable streaming mode
+            verbose=False  # Disable progress messages
         )
 
         ball_detections = []
@@ -80,6 +155,7 @@ class VideoProcessor:
             classes=38,  # Racket class
             conf=0.3,
             tracker="bytetrack.yaml",
+            stream=True  # Enable streaming mode
         )
 
         racket_detections = []
@@ -117,59 +193,144 @@ class VideoProcessor:
 
     def process_video(self, video_path, output_path, temp_dir):
         """Process a video and save results with pose estimation, ball detection, and key moments."""
-        os.makedirs(temp_dir, exist_ok=True)
+        try:
+            os.makedirs(temp_dir, exist_ok=True)
+            os.makedirs(os.path.dirname(output_path), exist_ok=True)
 
-        # Get video FPS
-        fps = self.get_video_fps(video_path)
+            # Get video FPS
+            fps = self.get_video_fps(video_path)
 
-        # Run pose detection
-        print("Processing frames with MMPose...")
-        result_generator = self.pose_inferencer(
-            video_path, show=False, vis_out_dir=temp_dir, radius=4, thickness=2
-        )
+            # Run pose detection
+            print("Processing frames with MMPose...")
+            result_generator = self.pose_inferencer(
+                video_path, show=False, vis_out_dir=temp_dir, radius=4, thickness=2
+            )
 
-        # Collect pose results
-        pose_results = []
-        for result in result_generator:
-            pose_results.append(result)
+            # Collect pose results
+            pose_results = []
+            for result in result_generator:
+                pose_results.append(result)
 
-        # Look for pose visualization video
-        temp_files = os.listdir(temp_dir)
-        vis_files = [f for f in temp_files if f.endswith((".mp4", ".avi"))]
+            # Look for pose visualization video
+            temp_files = os.listdir(temp_dir)
+            vis_files = [f for f in temp_files if f.endswith((".mp4", ".avi"))]
 
-        if not vis_files:
-            print(f"Error: Could not find processed video in {temp_dir}")
+            if not vis_files:
+                print(f"Error: Could not find processed video in {temp_dir}")
+                return False
+
+            # Get pose visualization video path
+            temp_video_path = os.path.join(temp_dir, vis_files[0])
+            
+            # Create a temporary file for re-encoding
+            temp_output = os.path.join(temp_dir, "temp_output.mp4")
+            
+            # Re-encode the video to ensure compatibility
+            self.reencode_video(temp_video_path, temp_output)
+            
+            # Check if temp output is valid before copying
+            if not self.check_video_file(temp_output):
+                print("Warning: Re-encoded video may be invalid. Copying original file as fallback.")
+                # Try to copy the original file as a fallback
+                try:
+                    shutil.copy2(temp_video_path, output_path)
+                    print(f"Copied original visualization to: {output_path}")
+                except Exception as e:
+                    print(f"Error copying original file: {str(e)}")
+                    return False
+            else:
+                # Copy the re-encoded video to the final output
+                try:
+                    shutil.copy2(temp_output, output_path)
+                    print(f"Saved processed video to: {output_path}")
+                except Exception as e:
+                    print(f"Error copying re-encoded file: {str(e)}")
+                    return False
+                    
+            # Set file permissions to ensure file is accessible
+            try:
+                import stat
+                os.chmod(output_path, stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IWGRP | stat.S_IROTH)
+                print(f"Set permissions for {output_path}")
+            except Exception as e:
+                print(f"Warning: Could not set file permissions: {str(e)}")
+
+            # Clean up temporary files
+            try:
+                os.remove(temp_output)
+            except:
+                pass
+
+            # Detect balls and rackets
+            ball_detections = self.detect_balls(video_path, fps)
+            racket_detections = self.detect_rackets(video_path, fps)
+
+            # Detect key moments
+            key_moments = detect_key_moments(
+                pose_results, ball_detections, racket_detections, fps=fps
+            )
+
+            # Save results
+            self._save_results(output_path, key_moments, ball_detections)
+
+            return True
+        except Exception as e:
+            print(f"Error processing video: {str(e)}")
             return False
-
-        # Get pose visualization video path
-        temp_video_path = os.path.join(temp_dir, vis_files[0])
-
-        # Detect balls and rackets
-        ball_detections = self.detect_balls(video_path, fps)
-        racket_detections = self.detect_rackets(video_path, fps)
-
-        # Detect key moments
-        key_moments = detect_key_moments(
-            pose_results, ball_detections, racket_detections, fps=fps
-        )
-
-        # Save results
-        self._save_results(output_path, key_moments, ball_detections)
-
-        return True
 
     def _save_results(self, output_path, key_moments, ball_detections):
         """Save detection results to JSON files."""
-        # Save key moments
-        moments_file = os.path.splitext(output_path)[0] + "_moments.json"
-        with open(moments_file, "w") as f:
-            import json
+        try:
+            # Save key moments
+            moments_file = os.path.splitext(output_path)[0] + "_moments.json"
+            with open(moments_file, "w") as f:
+                import json
+                json.dump(key_moments, f)
+            print(f"Saved key moments to: {moments_file}")
 
-            json.dump(key_moments, f)
-
-        # Save ball detections
-        balls_file = os.path.splitext(output_path)[0] + "_balls.json"
-        with open(balls_file, "w") as f:
-            import json
-
-            json.dump(ball_detections, f)
+            # Save ball detections
+            balls_file = os.path.splitext(output_path)[0] + "_balls.json"
+            with open(balls_file, "w") as f:
+                import json
+                json.dump(ball_detections, f)
+            print(f"Saved ball detections to: {balls_file}")
+            
+            # Verify the output video is valid and readable
+            self.check_video_file(output_path)
+        except Exception as e:
+            print(f"Error saving results: {str(e)}")
+            
+    def check_video_file(self, video_path):
+        """Check if a video file is valid and can be opened."""
+        if not os.path.exists(video_path):
+            print(f"Warning: Video file {video_path} does not exist")
+            return False
+            
+        try:
+            cap = cv2.VideoCapture(video_path)
+            if not cap.isOpened():
+                print(f"Warning: Could not open video file {video_path}")
+                return False
+                
+            # Try to read the first frame
+            ret, _ = cap.read()
+            if not ret:
+                print(f"Warning: Could not read frames from {video_path}")
+                return False
+                
+            # Get video properties
+            width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+            height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+            fps = cap.get(cv2.CAP_PROP_FPS)
+            frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+            
+            cap.release()
+            
+            print(f"Video validation - {video_path} is valid:")
+            print(f"  Dimensions: {width}x{height}")
+            print(f"  FPS: {fps}")
+            print(f"  Frame count: {frame_count}")
+            return True
+        except Exception as e:
+            print(f"Error validating video file {video_path}: {str(e)}")
+            return False

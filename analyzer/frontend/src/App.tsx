@@ -24,13 +24,19 @@ const App: React.FC = () => {
       });
 
       if (!response.ok) {
-        throw new Error("Failed to upload videos");
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `Failed to upload videos: ${response.status} ${response.statusText}`);
       }
 
       const data = await response.json();
-      setProcessedVideos(data.videos);
+      if (data.status === "success") {
+        setProcessedVideos(data.videos);
+      } else {
+        throw new Error(data.message || "Error processing videos");
+      }
     } catch (error) {
       console.error("Error uploading videos:", error);
+      throw error;
     }
   };
 
