@@ -1,5 +1,6 @@
 import React from 'react';
-import { Box, Typography, Paper, Chip } from '@mui/material';
+import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
+import { Badge } from "../components/ui/badge";
 
 interface KeyMoment {
   frame: number;
@@ -18,124 +19,39 @@ const KeyMoments: React.FC<KeyMomentsProps> = ({ moments, onMomentClick }) => {
   const sortedMoments = moments.sort((a, b) => b.timestamp - a.timestamp);
 
   return (
-    <Box sx={{ mt: 4, mb: 8 }}>
-      <Typography 
-        variant="h5" 
-        gutterBottom 
-        sx={{ 
-          mb: 3,
-          background: 'linear-gradient(130deg, #4D7EF7, #7C4DFF)',
-          WebkitBackgroundClip: 'text',
-          WebkitTextFillColor: 'transparent',
-          fontWeight: 600
-        }}
-      >
+    <div className="mt-4 mb-8">
+      <h2 className="text-2xl font-semibold mb-3 bg-gradient-to-r from-blue-500 to-purple-500 bg-clip-text text-transparent">
         Key Moments
-      </Typography>
-      <Box 
-        sx={{ 
-          display: 'grid',
-          gridTemplateColumns: {
-            xs: '1fr',
-            sm: 'repeat(2, 1fr)',
-            md: 'repeat(5, 1fr)'
-          },
-          gap: { xs: 3, sm: 4 }
-        }}
-      >
+      </h2>
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-4">
         {sortedMoments.map((moment, index) => (
-          <Paper
+          <Card
             key={index}
             onClick={() => onMomentClick(moment.timestamp)}
-            sx={{
-              p: 3,
-              cursor: 'pointer',
-              transition: 'all 0.2s',
-              bgcolor: 'background.paper',
-              position: 'relative',
-              overflow: 'hidden',
-              height: '100%',
-              display: 'flex',
-              flexDirection: 'column',
-              '&:hover': {
-                transform: 'translateY(-2px)',
-                '&::after': {
-                  opacity: 1,
-                },
-              },
-              '&::before': {
-                content: '""',
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                borderRadius: 'inherit',
-                padding: '1px',
-                background: 'linear-gradient(130deg, rgba(77,126,247,0.2), rgba(124,77,255,0.2))',
-                WebkitMask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',
-                WebkitMaskComposite: 'xor',
-                maskComposite: 'exclude',
-              },
-              '&::after': {
-                content: '""',
-                position: 'absolute',
-                inset: 0,
-                background: 'linear-gradient(130deg, rgba(77,126,247,0.1), rgba(124,77,255,0.1))',
-                opacity: 0,
-                transition: 'opacity 0.2s',
-              },
-            }}
+            className="cursor-pointer transition-all hover:translate-y-[-2px] hover:shadow-lg"
           >
-            <Box sx={{ 
-              position: 'relative',
-              zIndex: 1,
-              display: 'flex', 
-              justifyContent: 'space-between', 
-              alignItems: 'flex-start',
-              mb: 3,
-              gap: 2
-            }}>
-              <Typography 
-                variant="h6" 
-                component="div" 
-                sx={{ 
-                  fontSize: '1.1rem',
-                  fontWeight: 600,
-                  color: 'text.primary',
-                  letterSpacing: '-0.01em',
-                }}
-              >
-                {moment.label}
-              </Typography>
-              <Chip
-                label={`${(moment.confidence * 100).toFixed(0)}%`}
-                color={moment.confidence > 0.7 ? 'success' : moment.confidence > 0.4 ? 'warning' : 'error'}
-                size="small"
-                sx={{
-                  minWidth: '60px',
-                  fontSize: '0.85rem',
-                  fontWeight: 500,
-                  height: '24px',
-                }}
-              />
-            </Box>
-            <Typography 
-              variant="body2" 
-              sx={{ 
-                position: 'relative',
-                zIndex: 1,
-                color: 'text.secondary',
-                letterSpacing: '-0.01em',
-                mt: 'auto'
-              }}
-            >
-              Time: {moment.timestamp.toFixed(2)}s
-            </Typography>
-          </Paper>
+            <CardHeader className="pb-2">
+              <div className="flex justify-between items-start gap-2">
+                <CardTitle className="text-lg font-semibold">
+                  {moment.label}
+                </CardTitle>
+                <Badge
+                  variant={moment.confidence > 0.7 ? "success" : moment.confidence > 0.4 ? "warning" : "destructive"}
+                  className="min-w-[60px] text-xs font-medium h-6"
+                >
+                  {(moment.confidence * 100).toFixed(0)}%
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">
+                Time: {moment.timestamp.toFixed(2)}s
+              </p>
+            </CardContent>
+          </Card>
         ))}
-      </Box>
-    </Box>
+      </div>
+    </div>
   );
 };
 
