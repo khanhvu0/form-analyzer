@@ -352,99 +352,60 @@ def detect_key_moments(
                         f"Detected Racket Low Point at frame {frame_idx}, timestamp {timestamp:.2f}"
                     )
 
-        # Ball Impact: Detect when ball velocity changes drastically (indicating impact)
+        # Ball Impact: Detect when racket is at its highest position
         elif (
             serve_phases["racket_low"]
             and not serve_phases["impact"]
-            and ball_detections
+            and racket_detections
         ):
-            # Get ball detections in current frame and previous frames
-            current_balls = [b for b in ball_detections if b["frame"] == frame_idx]
-            prev_balls = [
-                b for b in ball_detections if frame_idx - 3 <= b["frame"] < frame_idx
-            ]
+            # Find the global highest racket position across all frames
+            highest_racket_info = None
+            highest_racket_y = float("inf")
+            highest_racket_frame = None
 
-            if current_balls and prev_balls:
-                # Calculate velocities between consecutive detections
-                velocities = []
-                for i in range(len(prev_balls)):
-                    for curr_ball in current_balls:
-                        if curr_ball["track_id"] == prev_balls[i]["track_id"]:
-                            velocity = calculate_ball_velocity(
-                                prev_balls[i], curr_ball, fps
-                            )
-                            velocities.append(velocity)
-                            # Store velocity for debugging
-                            ball_velocities.append(
-                                {
-                                    "frame": frame_idx,
-                                    "timestamp": timestamp,
-                                    "velocity": velocity.tolist(),
-                                    "magnitude": float(np.linalg.norm(velocity)),
-                                }
-                            )
+            # Examine all racket detections
+            for racket in racket_detections:
+                # Calculate the midpoint of the racket bounding box
+                racket_y = (racket["bbox"][1] + racket["bbox"][3]) / 2
+                racket_x = (racket["bbox"][0] + racket["bbox"][2]) / 2
+                
+                # Only consider rackets that are close to the right wrist
+                if racket_y < highest_racket_y:
+                    highest_racket_y = racket_y
+                    highest_racket_info = racket
+                    highest_racket_frame = racket["frame"]
 
-                if velocities:
-                    # Calculate average velocity change
-                    avg_velocity = np.mean(velocities, axis=0)
-                    avg_velocity_magnitude = np.linalg.norm(avg_velocity)
+            # If we found the highest racket, mark it as the impact moment
+            if highest_racket_info:
+                # Update frame and timestamp to the peak
+                impact_frame = highest_racket_frame
+                impact_timestamp = impact_frame / fps
 
-                    # Define impact threshold (adjust based on testing)
-                    IMPACT_THRESHOLD = 500  # pixels per second
+                # Calculate racket position
+                racket_x = (
+                    highest_racket_info["bbox"][0] + highest_racket_info["bbox"][2]
+                ) / 2
 
-                    # Check if velocity change indicates impact
-                    if avg_velocity_magnitude > IMPACT_THRESHOLD:
-                        serve_phases["impact"] = True
-                        # Get the ball that caused the impact
-                        impact_ball = current_balls[
-                            0
-                        ]  # Use the first ball in current frame
-                        key_moments.append(
-                            {
-                                "frame": int(frame_idx),
-                                "timestamp": float(timestamp),
-                                "label": "Ball Impact",
-                                "confidence": (
-                                    float(np.mean(scores))
-                                    if scores is not None
-                                    else 1.0
-                                ),
-                                "ball_position": {
-                                    "x": float(
-                                        (
-                                            impact_ball["bbox"][0]
-                                            + impact_ball["bbox"][2]
-                                        )
-                                        / 2
-                                    ),
-                                    "y": float(
-                                        (
-                                            impact_ball["bbox"][1]
-                                            + impact_ball["bbox"][3]
-                                        )
-                                        / 2
-                                    ),
-                                },
-                                "ball_velocity": {
-                                    "vector": avg_velocity.tolist(),
-                                    "magnitude": float(avg_velocity_magnitude),
-                                },
-                                "previous_velocities": [
-                                    {
-                                        "frame": vel["frame"],
-                                        "timestamp": vel["timestamp"],
-                                        "velocity": vel["velocity"],
-                                        "magnitude": vel["magnitude"],
-                                    }
-                                    for vel in ball_velocities[
-                                        -3:
-                                    ]  # Last 3 velocities before impact
-                                ],
-                            }
-                        )
-                        print(
-                            f"Detected Ball Impact at frame {frame_idx}, timestamp {timestamp:.2f}"
-                        )
+                serve_phases["impact"] = True
+                key_moments.append(
+                    {
+                        "frame": int(impact_frame),
+                        "timestamp": float(impact_timestamp),
+                        "label": "Ball Impact",
+                        "confidence": float(highest_racket_info["confidence"]),
+                        "racket_position": {
+                            "x": float(racket_x),
+                            "y": float(highest_racket_y),
+                        },
+                        "right_hand_position": {
+                            "x": float(right_wrist[0]),
+                            "y": float(right_wrist[1]),
+                        },
+                    }
+                )
+                print(
+                    f"Detected Ball Impact at frame {impact_frame}, timestamp {impact_timestamp:.2f} (global highest racket)"
+                )
 
         # Follow Through: Right foot (ankle) at its highest position
         elif (
@@ -476,3 +437,92 @@ def detect_key_moments(
         print(f"  Magnitude: {vel['magnitude']:.2f} pixels/second")
 
     return key_moments
+
+
+# def detect_ball_impact(ball_detections, frame_idx, key_moments, scores, fps):
+#     current_balls = [b for b in ball_detections if b["frame"] == frame_idx]
+#     prev_balls = [
+#         b for b in ball_detections if frame_idx - 3 <= b["frame"] < frame_idx
+#     ]
+
+#     if current_balls and prev_balls:
+#         # Calculate velocities between consecutive detections
+#         velocities = []
+#         for i in range(len(prev_balls)):
+#             for curr_ball in current_balls:
+#                 if curr_ball["track_id"] == prev_balls[i]["track_id"]:
+#                     velocity = calculate_ball_velocity(
+#                         prev_balls[i], curr_ball, fps
+#                     )
+#                     velocities.append(velocity)
+#                     # Store velocity for debugging
+#                     ball_velocities.append(
+#                         {
+#                             "frame": frame_idx,
+#                             "timestamp": timestamp,
+#                             "velocity": velocity.tolist(),
+#                             "magnitude": float(np.linalg.norm(velocity)),
+#                         }
+#                     )
+
+#         if velocities:
+#             # Calculate average velocity change
+#             avg_velocity = np.mean(velocities, axis=0)
+#             avg_velocity_magnitude = np.linalg.norm(avg_velocity)
+
+#             # Define impact threshold (adjust based on testing)
+#             IMPACT_THRESHOLD = 500  # pixels per second
+
+#             # Check if velocity change indicates impact
+#             if avg_velocity_magnitude > IMPACT_THRESHOLD:
+#                 serve_phases["impact"] = True
+#                 # Get the ball that caused the impact
+#                 impact_ball = current_balls[
+#                     0
+#                 ]  # Use the first ball in current frame
+#                 key_moments.append(
+#                     {
+#                         "frame": int(frame_idx),
+#                         "timestamp": float(timestamp),
+#                         "label": "Ball Impact",
+#                         "confidence": (
+#                             float(np.mean(scores))
+#                             if scores is not None
+#                             else 1.0
+#                         ),
+#                         "ball_position": {
+#                             "x": float(
+#                                 (
+#                                     impact_ball["bbox"][0]
+#                                     + impact_ball["bbox"][2]
+#                                 )
+#                                 / 2
+#                             ),
+#                             "y": float(
+#                                 (
+#                                     impact_ball["bbox"][1]
+#                                     + impact_ball["bbox"][3]
+#                                 )
+#                                 / 2
+#                             ),
+#                         },
+#                         "ball_velocity": {
+#                             "vector": avg_velocity.tolist(),
+#                             "magnitude": float(avg_velocity_magnitude),
+#                         },
+#                         "previous_velocities": [
+#                             {
+#                                 "frame": vel["frame"],
+#                                 "timestamp": vel["timestamp"],
+#                                 "velocity": vel["velocity"],
+#                                 "magnitude": vel["magnitude"],
+#                             }
+#                             for vel in ball_velocities[
+#                                 -3:
+#                             ]  # Last 3 velocities before impact
+#                         ],
+#                     }
+#                 )
+#                 print(
+#                     f"Detected Ball Impact at frame {frame_idx}, timestamp {timestamp:.2f}"
+#                 )
