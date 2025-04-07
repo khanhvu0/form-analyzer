@@ -7,6 +7,9 @@ import numpy as np
 from werkzeug.utils import secure_filename
 from video_processor import VideoProcessor
 
+os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
+
+
 # Initialize Flask app with Vite frontend
 app = Flask(
     __name__,
