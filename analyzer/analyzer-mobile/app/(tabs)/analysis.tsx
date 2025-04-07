@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { useVideo } from '../../context/VideoContext';
-import { Video } from 'expo-av';
+import VideoPlayer from '../../components/VideoPlayer';
 
 export default function Analysis() {
   const { currentVideo } = useVideo();
@@ -19,12 +19,7 @@ export default function Analysis() {
   return (
     <ScrollView style={styles.container}>
       <View style={styles.videoContainer}>
-        <Video
-          source={{ uri: currentVideo.uri }}
-          style={styles.video}
-          useNativeControls
-          resizeMode="contain"
-        />
+        <VideoPlayer uri={currentVideo.uri} />
       </View>
       <View style={styles.momentsContainer}>
         <Text style={styles.sectionTitle}>Key Moments</Text>
@@ -67,11 +62,6 @@ const styles = StyleSheet.create({
   },
   videoContainer: {
     width: '100%',
-    aspectRatio: 16 / 9,
-    backgroundColor: '#000',
-  },
-  video: {
-    flex: 1,
   },
   momentsContainer: {
     padding: 16,

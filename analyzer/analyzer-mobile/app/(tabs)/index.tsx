@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, Alert, Text } from 'react-native';
+import { View, StyleSheet, Alert, Text, ScrollView, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
 import VideoUpload from '../../components/VideoUpload';
+import VideoPlayer from '../../components/VideoPlayer';
 import { useVideo } from '../../context/VideoContext';
 
 const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB
@@ -10,6 +11,7 @@ export default function Home() {
   const router = useRouter();
   const { setCurrentVideo } = useVideo();
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadedVideo, setUploadedVideo] = useState<{ uri: string; name: string } | null>(null);
 
   const handleUpload = async (files: any[]) => {
     try {
@@ -28,41 +30,76 @@ export default function Home() {
 
       setIsUploading(true);
 
-      // Here you would typically upload the files to your backend
-      // For now, we'll just simulate the upload and generate mock moments
-      const mockMoments = Array.from({ length: 5 }, (_, i) => ({
-        frame: Math.floor(Math.random() * 1000),
-        timestamp: i * 30, // Every 30 seconds
-        label: 'Serve',
-        confidence: 0.85 + Math.random() * 0.15,
-      }));
-
-      // Update video context
-      setCurrentVideo({
+      // Set the uploaded video for preview
+      setUploadedVideo({
         uri: file.uri,
-        moments: mockMoments,
+        name: file.name
       });
-
-      // Navigate to analysis screen
-      router.push('/analysis');
+      
+      setIsUploading(false);
     } catch (error) {
       Alert.alert('Error', 'Failed to process video. Please try again.');
       console.error('Upload error:', error);
-    } finally {
       setIsUploading(false);
     }
   };
 
+  const handleAnalyze = () => {
+    if (!uploadedVideo) return;
+    
+    // Generate mock moments as before
+    const mockMoments = Array.from({ length: 5 }, (_, i) => ({
+      frame: Math.floor(Math.random() * 1000),
+      timestamp: i * 30, // Every 30 seconds
+      label: 'Serve',
+      confidence: 0.85 + Math.random() * 0.15,
+    }));
+
+    // Update video context
+    setCurrentVideo({
+      uri: uploadedVideo.uri,
+      moments: mockMoments,
+    });
+
+    // Navigate to analysis screen
+    router.push('/analysis');
+  };
+
   return (
-    <View style={styles.container}>
+    <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
       <View style={styles.header}>
         <Text style={styles.title}>Form Analyzer</Text>
         <Text style={styles.subtitle}>Upload a video to analyze your form</Text>
       </View>
+      
       <View style={styles.uploadContainer}>
-        <VideoUpload onUpload={handleUpload} isUploading={isUploading} />
+        {!uploadedVideo ? (
+          <VideoUpload onUpload={handleUpload} isUploading={isUploading} />
+        ) : (
+          <View style={styles.videoPreviewContainer}>
+            <Text style={styles.videoTitle}>{uploadedVideo.name}</Text>
+            
+            <VideoPlayer uri={uploadedVideo.uri} />
+            
+            <View style={styles.actionButtons}>
+              <TouchableOpacity 
+                style={[styles.button, styles.changeButton]} 
+                onPress={() => setUploadedVideo(null)}
+              >
+                <Text style={styles.buttonText}>Change Video</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={[styles.button, styles.analyzeButton]} 
+                onPress={handleAnalyze}
+              >
+                <Text style={styles.buttonText}>Analyze Video</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
       </View>
-    </View>
+    </ScrollView>
   );
 }
 
@@ -70,6 +107,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#fff',
+  },
+  contentContainer: {
+    paddingBottom: 30,
   },
   header: {
     padding: 20,
@@ -88,9 +128,40 @@ const styles = StyleSheet.create({
     color: '#6c757d',
   },
   uploadContainer: {
-    flex: 1,
     padding: 20,
-    justifyContent: 'center',
+  },
+  videoPreviewContainer: {
+    width: '100%',
     alignItems: 'center',
+  },
+  videoTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  actionButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    width: '100%',
+    marginTop: 24,
+  },
+  button: {
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+    minWidth: 140,
+    alignItems: 'center',
+  },
+  changeButton: {
+    backgroundColor: '#6c757d',
+  },
+  analyzeButton: {
+    backgroundColor: '#007bff',
+  },
+  buttonText: {
+    color: 'white',
+    fontWeight: '600',
+    fontSize: 16,
   },
 });

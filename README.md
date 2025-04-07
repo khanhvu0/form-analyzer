@@ -1,4 +1,4 @@
-# Tennis Serve Analysis
+cd # Tennis Serve Analysis
 
 A web application for analyzing tennis serves using computer vision and pose estimation. The application processes front and side view videos of tennis serves to detect key moments and ball positions.
 
