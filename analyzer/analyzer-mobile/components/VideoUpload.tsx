@@ -6,10 +6,19 @@ import { MaterialIcons } from '@expo/vector-icons';
 interface VideoUploadProps {
   onUpload: (files: any[]) => void;
   isUploading?: boolean;
+  isUploaded?: boolean;
+  fileName?: string;
 }
 
-const VideoUpload: React.FC<VideoUploadProps> = ({ onUpload, isUploading = false }) => {
+const VideoUpload: React.FC<VideoUploadProps> = ({ 
+  onUpload, 
+  isUploading = false, 
+  isUploaded = false,
+  fileName = ''
+}) => {
   const handleFilePick = async () => {
+    if (isUploaded) return;
+    
     try {
       const result = await DocumentPicker.getDocumentAsync({
         type: 'video/*',
@@ -31,6 +40,23 @@ const VideoUpload: React.FC<VideoUploadProps> = ({ onUpload, isUploading = false
       console.error('Error picking document:', err);
     }
   };
+
+  // Display different UI based on the upload state
+  if (isUploaded) {
+    return (
+      <View style={[styles.container, styles.uploadedContainer]}>
+        <View style={styles.checkmarkCircle}>
+          <MaterialIcons name="check" size={36} color="#fff" />
+        </View>
+        <Text style={styles.uploadedText}>
+          Video Uploaded Successfully
+        </Text>
+        {fileName ? (
+          <Text style={styles.fileName}>{fileName}</Text>
+        ) : null}
+      </View>
+    );
+  }
 
   return (
     <TouchableOpacity
@@ -62,6 +88,11 @@ const styles = StyleSheet.create({
     minHeight: 200,
     width: '100%',
   },
+  uploadedContainer: {
+    borderColor: '#4CAF50',
+    borderStyle: 'solid',
+    backgroundColor: '#f1f8e9',
+  },
   text: {
     fontSize: 16,
     fontWeight: '600',
@@ -73,6 +104,26 @@ const styles = StyleSheet.create({
     color: '#666',
     marginTop: 8,
   },
+  checkmarkCircle: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: '#4CAF50',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  uploadedText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#2E7D32',
+  },
+  fileName: {
+    fontSize: 14,
+    color: '#666',
+    marginTop: 8,
+    maxWidth: '100%',
+  }
 });
 
 export default VideoUpload; 

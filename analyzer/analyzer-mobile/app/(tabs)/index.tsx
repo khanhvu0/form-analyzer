@@ -8,10 +8,13 @@ const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB
 
 export default function Home() {
   const router = useRouter();
-  const { setCurrentVideo } = useVideo();
-  const [isUploading, setIsUploading] = useState(false);
+  const { firstVideo, secondVideo, setFirstVideo, setSecondVideo } = useVideo();
+  const [isUploading1, setIsUploading1] = useState(false);
+  const [isUploading2, setIsUploading2] = useState(false);
+  const [firstFileName, setFirstFileName] = useState('');
+  const [secondFileName, setSecondFileName] = useState('');
 
-  const handleUpload = async (files: any[]) => {
+  const handleFirstVideoUpload = async (files: any[]) => {
     try {
       if (files.length === 0) {
         Alert.alert('Error', 'Please select a video file.');
@@ -26,7 +29,10 @@ export default function Home() {
         return;
       }
 
-      setIsUploading(true);
+      setIsUploading1(true);
+
+      // Store the file name
+      setFirstFileName(file.name);
 
       // Here you would typically upload the files to your backend
       // For now, we'll just simulate the upload and generate mock moments
@@ -38,18 +44,68 @@ export default function Home() {
       }));
 
       // Update video context
-      setCurrentVideo({
+      setFirstVideo({
         uri: file.uri,
         moments: mockMoments,
       });
 
-      // Navigate to analysis screen
-      router.push('/analysis');
+      checkAndNavigate();
     } catch (error) {
       Alert.alert('Error', 'Failed to process video. Please try again.');
       console.error('Upload error:', error);
     } finally {
-      setIsUploading(false);
+      setIsUploading1(false);
+    }
+  };
+
+  const handleSecondVideoUpload = async (files: any[]) => {
+    try {
+      if (files.length === 0) {
+        Alert.alert('Error', 'Please select a video file.');
+        return;
+      }
+
+      const file = files[0];
+      
+      // Basic file validation
+      if (!file.uri || !file.name) {
+        Alert.alert('Error', 'Invalid file selected.');
+        return;
+      }
+
+      setIsUploading2(true);
+
+      // Store the file name
+      setSecondFileName(file.name);
+
+      // Here you would typically upload the files to your backend
+      // For now, we'll just simulate the upload and generate mock moments
+      const mockMoments = Array.from({ length: 5 }, (_, i) => ({
+        frame: Math.floor(Math.random() * 1000),
+        timestamp: i * 30, // Every 30 seconds
+        label: 'Serve',
+        confidence: 0.85 + Math.random() * 0.15,
+      }));
+
+      // Update video context
+      setSecondVideo({
+        uri: file.uri,
+        moments: mockMoments,
+      });
+
+      checkAndNavigate();
+    } catch (error) {
+      Alert.alert('Error', 'Failed to process video. Please try again.');
+      console.error('Upload error:', error);
+    } finally {
+      setIsUploading2(false);
+    }
+  };
+
+  const checkAndNavigate = () => {
+    // Only navigate to analysis if both videos are uploaded
+    if (firstVideo && secondVideo) {
+      router.push('/analysis');
     }
   };
 
@@ -57,10 +113,24 @@ export default function Home() {
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Form Analyzer</Text>
-        <Text style={styles.subtitle}>Upload a video to analyze your form</Text>
+        <Text style={styles.subtitle}>Upload two videos to compare your form</Text>
       </View>
       <View style={styles.uploadContainer}>
-        <VideoUpload onUpload={handleUpload} isUploading={isUploading} />
+        <Text style={styles.uploadLabel}>First Video</Text>
+        <VideoUpload 
+          onUpload={handleFirstVideoUpload} 
+          isUploading={isUploading1}
+          isUploaded={!!firstVideo}
+          fileName={firstFileName}
+        />
+        
+        <Text style={[styles.uploadLabel, styles.secondLabel]}>Second Video</Text>
+        <VideoUpload 
+          onUpload={handleSecondVideoUpload} 
+          isUploading={isUploading2}
+          isUploaded={!!secondVideo}
+          fileName={secondFileName}
+        />
       </View>
     </View>
   );
@@ -90,7 +160,14 @@ const styles = StyleSheet.create({
   uploadContainer: {
     flex: 1,
     padding: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
+  },
+  uploadLabel: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 10,
+    color: '#333',
+  },
+  secondLabel: {
+    marginTop: 20,
   },
 });
