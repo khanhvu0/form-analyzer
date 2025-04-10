@@ -48,7 +48,8 @@
           "photosPermission": "The app needs access to your photos to select videos for form analysis.",
           "cameraPermission": "The app needs access to your camera to record videos for form analysis."
         }
-      ]
+      ],
+      "expo-video"
     ],
     "experiments": {
       "typedRoutes": true

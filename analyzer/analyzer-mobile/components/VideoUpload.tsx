@@ -1,11 +1,11 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
-import * as ImagePicker from 'expo-image-picker';
+import { launchImageLibraryAsync, launchCameraAsync, MediaTypeOptions, VideoExportPreset, requestMediaLibraryPermissionsAsync, requestCameraPermissionsAsync } from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { MaterialIcons } from '@expo/vector-icons';
 
 interface VideoUploadProps {
-  onUpload: (files: any[]) => void;
+  onUpload: (files: Array<{ uri: string; name: string; type: string }>) => void;
   isUploading?: boolean;
   isUploaded?: boolean;
   fileName?: string;
@@ -19,24 +19,28 @@ const VideoUpload: React.FC<VideoUploadProps> = ({
   fileName = '',
   onRemove
 }) => {
+  console.log('VideoUpload rendering with props:', { onUpload, isUploading, isUploaded, fileName });
+
   const handleGalleryPick = async () => {
+    console.log('handleGalleryPick called');
     try {
-      // Request permissions
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      const { status } = await requestMediaLibraryPermissionsAsync();
+      console.log('Gallery permission status:', status);
       if (status !== 'granted') {
         Alert.alert('Permission Required', 'Sorry, we need camera roll permissions to make this work!');
         return;
       }
 
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Videos,
+      const result = await launchImageLibraryAsync({
+        mediaTypes: MediaTypeOptions.Videos,
         allowsMultipleSelection: true,
         quality: 1,
-        allowsEditing: true, // Enable native video cropping/trimming
-        videoExportPreset: ImagePicker.VideoExportPreset.MediumQuality,
+        videoExportPreset: VideoExportPreset.MediumQuality,
       });
 
+      console.log('Gallery picker result:', result);
       if (result.canceled) {
+        console.log('Gallery picker cancelled');
         return;
       }
 
@@ -46,6 +50,7 @@ const VideoUpload: React.FC<VideoUploadProps> = ({
         type: 'video/mp4',
       }));
 
+      console.log('Calling onUpload with files:', files);
       onUpload(files);
     } catch (err) {
       console.error('Error picking video:', err);
@@ -55,16 +60,15 @@ const VideoUpload: React.FC<VideoUploadProps> = ({
 
   const handleCameraRecord = async () => {
     try {
-      // Request camera permissions
-      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      const { status } = await requestCameraPermissionsAsync();
       if (status !== 'granted') {
         Alert.alert('Permission Required', 'Sorry, we need camera permissions to make this work!');
         return;
       }
-      const result = await ImagePicker.launchCameraAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Videos,
+      const result = await launchCameraAsync({
+        mediaTypes: MediaTypeOptions.Videos,
         quality: 1,
-        videoMaxDuration: 60, // 60 seconds max
+        videoMaxDuration: 60,
       });
 
       if (result.canceled) {

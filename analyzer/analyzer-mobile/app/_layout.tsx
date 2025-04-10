@@ -28,8 +28,8 @@ export default function RootLayout() {
   }
 
   return (
-    <VideoProvider>
-      <SafeAreaProvider>
+    <SafeAreaProvider>
+      <VideoProvider>
         <Stack>
           <Stack.Screen 
             name="(tabs)" 
@@ -38,7 +38,7 @@ export default function RootLayout() {
             }} 
           />
         </Stack>
-      </SafeAreaProvider>
-    </VideoProvider>
+      </VideoProvider>
+    </SafeAreaProvider>
   );
 }
