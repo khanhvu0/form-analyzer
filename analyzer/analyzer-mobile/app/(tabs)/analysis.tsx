@@ -117,14 +117,21 @@ export default function Analysis() {
       // Calculate position as percentage of the progress bar
       const position = (keypoint.timestamp * 1000) / duration;
       
+      // Get current video position
+      const currentPosition = videoIndex === 1 ? firstPosition : secondPosition;
+      const currentPositionPercent = currentPosition / duration;
+      
+      // Calculate the actual position of the keypoint relative to the progress bar
+      const keypointPosition = Math.min(position, currentPositionPercent);
+      
       return (
         <RNTouchableOpacity
           key={`keypoint-${videoIndex}-${index}`}
           style={[
             styles.keypointDot,
             { 
-              left: `${position * 100}%`,
-              transform: [{ translateX: -8 }] // Center the dot (half of dot width)
+              left: `${keypointPosition * 100}%`,
+              transform: [{ translateX: -8 }], // Center the dot (half of dot width)
             }
           ]}
           onPress={() => handleKeypointPress({
@@ -147,6 +154,7 @@ export default function Analysis() {
           style={styles.video}
           resizeMode={ResizeMode.COVER}
           onPlaybackStatusUpdate={handleFirstVideoStatus}
+          isLooping={false}
         />
         
         <View style={styles.overlayControls}>
@@ -212,6 +220,7 @@ export default function Analysis() {
           style={styles.video}
           resizeMode={ResizeMode.COVER}
           onPlaybackStatusUpdate={handleSecondVideoStatus}
+          isLooping={false}
         />
         
         <View style={styles.overlayControls}>

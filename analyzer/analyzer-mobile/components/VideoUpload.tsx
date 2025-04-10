@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
+import * as ImageManipulator from 'expo-image-manipulator';
 import { MaterialIcons } from '@expo/vector-icons';
 
 interface VideoUploadProps {
@@ -31,6 +32,8 @@ const VideoUpload: React.FC<VideoUploadProps> = ({
         mediaTypes: ImagePicker.MediaTypeOptions.Videos,
         allowsMultipleSelection: true,
         quality: 1,
+        allowsEditing: true, // Enable native video cropping/trimming
+        videoExportPreset: ImagePicker.VideoExportPreset.MediumQuality,
       });
 
       if (result.canceled) {
