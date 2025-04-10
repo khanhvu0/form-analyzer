@@ -102,6 +102,16 @@ export default function Home() {
     }
   };
 
+  const handleRemoveFirstVideo = () => {
+    setFirstVideo(null);
+    setFirstFileName('');
+  };
+
+  const handleRemoveSecondVideo = () => {
+    setSecondVideo(null);
+    setSecondFileName('');
+  };
+
   const checkAndNavigate = () => {
     // Only navigate to analysis if both videos are uploaded
     if (firstVideo && secondVideo) {
@@ -122,6 +132,7 @@ export default function Home() {
           isUploading={isUploading1}
           isUploaded={!!firstVideo}
           fileName={firstFileName}
+          onRemove={handleRemoveFirstVideo}
         />
         
         <Text style={[styles.uploadLabel, styles.secondLabel]}>Second Video</Text>
@@ -130,6 +141,7 @@ export default function Home() {
           isUploading={isUploading2}
           isUploaded={!!secondVideo}
           fileName={secondFileName}
+          onRemove={handleRemoveSecondVideo}
         />
       </View>
     </View>

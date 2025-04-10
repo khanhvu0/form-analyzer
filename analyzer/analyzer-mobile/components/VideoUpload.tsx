@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { MaterialIcons } from '@expo/vector-icons';
 
@@ -8,22 +8,22 @@ interface VideoUploadProps {
   isUploading?: boolean;
   isUploaded?: boolean;
   fileName?: string;
+  onRemove?: () => void;
 }
 
 const VideoUpload: React.FC<VideoUploadProps> = ({ 
   onUpload, 
   isUploading = false, 
   isUploaded = false,
-  fileName = ''
+  fileName = '',
+  onRemove
 }) => {
-  const handleFilePick = async () => {
-    if (isUploaded) return;
-    
+  const handleGalleryPick = async () => {
     try {
       // Request permissions
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
-        alert('Sorry, we need camera roll permissions to make this work!');
+        Alert.alert('Permission Required', 'Sorry, we need camera roll permissions to make this work!');
         return;
       }
 
@@ -46,6 +46,44 @@ const VideoUpload: React.FC<VideoUploadProps> = ({
       onUpload(files);
     } catch (err) {
       console.error('Error picking video:', err);
+      Alert.alert('Error', 'Failed to pick video from gallery');
+    }
+  };
+
+  const handleCameraRecord = async () => {
+    try {
+      // Request camera permissions
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission Required', 'Sorry, we need camera permissions to make this work!');
+        return;
+      }
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Videos,
+        quality: 1,
+        videoMaxDuration: 60, // 60 seconds max
+      });
+
+      if (result.canceled) {
+        return;
+      }
+
+      const files = result.assets.map(asset => ({
+        uri: asset.uri,
+        name: `recorded-${new Date().getTime()}.mp4`,
+        type: 'video/mp4',
+      }));
+
+      onUpload(files);
+    } catch (err) {
+      console.error('Error recording video:', err);
+      Alert.alert('Error', 'Failed to record video');
+    }
+  };
+
+  const handleRemove = () => {
+    if (onRemove) {
+      onRemove();
     }
   };
 
@@ -62,24 +100,44 @@ const VideoUpload: React.FC<VideoUploadProps> = ({
         {fileName ? (
           <Text style={styles.fileName}>{fileName}</Text>
         ) : null}
+        
+        <TouchableOpacity 
+          style={styles.removeButton}
+          onPress={handleRemove}
+        >
+          <MaterialIcons name="delete" size={20} color="#d32f2f" />
+          <Text style={styles.removeButtonText}>Remove Video</Text>
+        </TouchableOpacity>
       </View>
     );
   }
 
   return (
-    <TouchableOpacity
-      style={styles.container}
-      onPress={handleFilePick}
-      disabled={isUploading}
-    >
-      <MaterialIcons name="cloud-upload" size={48} color="#666" />
-      <Text style={styles.text}>
-        {isUploading ? 'Uploading...' : 'Tap to select videos from gallery'}
-      </Text>
-      <Text style={styles.subText}>
-        Supported formats: MP4, MOV
-      </Text>
-    </TouchableOpacity>
+    <View style={styles.container}>
+      <Text style={styles.title}>Add Video</Text>
+      
+      <View style={styles.optionsContainer}>
+        <TouchableOpacity
+          style={styles.optionButton}
+          onPress={handleCameraRecord}
+          disabled={isUploading}
+        >
+          <MaterialIcons name="videocam" size={32} color="#333" />
+          <Text style={styles.optionText}>Record Video</Text>
+          <Text style={styles.optionSubText}>Use your camera</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.optionButton}
+          onPress={handleGalleryPick}
+          disabled={isUploading}
+        >
+          <MaterialIcons name="photo-library" size={32} color="#333" />
+          <Text style={styles.optionText}>Select from Gallery</Text>
+          <Text style={styles.optionSubText}>Choose existing video</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
   );
 };
 
@@ -101,16 +159,41 @@ const styles = StyleSheet.create({
     borderStyle: 'solid',
     backgroundColor: '#f1f8e9',
   },
-  text: {
+  title: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 20,
+  },
+  optionsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    width: '100%',
+  },
+  optionButton: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    padding: 16,
+    width: '45%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  optionText: {
     fontSize: 16,
     fontWeight: '600',
-    marginTop: 12,
     color: '#333',
-  },
-  subText: {
-    fontSize: 14,
-    color: '#666',
     marginTop: 8,
+  },
+  optionSubText: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 4,
+    textAlign: 'center',
   },
   checkmarkCircle: {
     width: 64,
@@ -131,7 +214,20 @@ const styles = StyleSheet.create({
     color: '#666',
     marginTop: 8,
     maxWidth: '100%',
-  }
+  },
+  removeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 16,
+    padding: 8,
+    borderRadius: 4,
+    backgroundColor: '#ffebee',
+  },
+  removeButtonText: {
+    color: '#d32f2f',
+    marginLeft: 4,
+    fontWeight: '500',
+  },
 });
 
 export default VideoUpload; 
