@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import * as DocumentPicker from 'expo-document-picker';
+import * as ImagePicker from 'expo-image-picker';
 import { MaterialIcons } from '@expo/vector-icons';
 
 interface VideoUploadProps {
@@ -20,24 +20,32 @@ const VideoUpload: React.FC<VideoUploadProps> = ({
     if (isUploaded) return;
     
     try {
-      const result = await DocumentPicker.getDocumentAsync({
-        type: 'video/*',
-        multiple: true,
+      // Request permissions
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        alert('Sorry, we need camera roll permissions to make this work!');
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Videos,
+        allowsMultipleSelection: true,
+        quality: 1,
       });
 
       if (result.canceled) {
         return;
       }
 
-      const files = result.assets.map(file => ({
-        uri: file.uri,
-        name: file.name,
-        type: file.mimeType,
+      const files = result.assets.map(asset => ({
+        uri: asset.uri,
+        name: asset.uri.split('/').pop() || 'video',
+        type: 'video/mp4',
       }));
 
       onUpload(files);
     } catch (err) {
-      console.error('Error picking document:', err);
+      console.error('Error picking video:', err);
     }
   };
 
@@ -66,10 +74,10 @@ const VideoUpload: React.FC<VideoUploadProps> = ({
     >
       <MaterialIcons name="cloud-upload" size={48} color="#666" />
       <Text style={styles.text}>
-        {isUploading ? 'Uploading...' : 'Tap to upload videos'}
+        {isUploading ? 'Uploading...' : 'Tap to select videos from gallery'}
       </Text>
       <Text style={styles.subText}>
-        Supported formats: MP4, MOV, AVI
+        Supported formats: MP4, MOV
       </Text>
     </TouchableOpacity>
   );
