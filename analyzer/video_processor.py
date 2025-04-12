@@ -134,6 +134,8 @@ class VideoProcessor:
                 confs = result.boxes.conf.cpu().numpy()
                 classes = result.boxes.cls.cpu().numpy()
 
+                ball_count = 0
+                racket_count = 0
                 for i, box in enumerate(boxes):
                     x1, y1, x2, y2 = box.astype(int)
                     track_id = (
@@ -152,8 +154,11 @@ class VideoProcessor:
 
                     if class_id == 32:  # Tennis ball
                         ball_detections.append(detection)
+                        ball_count += 1
                     elif class_id == 38:  # Tennis racket
                         racket_detections.append(detection)
+                        racket_count += 1
+                print(f"Found {ball_count} balls and {racket_count} rackets")
 
             frame_idx += 1
 
