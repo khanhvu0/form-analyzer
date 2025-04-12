@@ -250,24 +250,66 @@ def detect_key_moments(
                         f"Detected Ball Release at frame {frame_idx}, timestamp {timestamp:.2f}"
                     )
 
-        # Trophy Position: Left hand at its highest point
+        # Trophy Position: When the racket is above the right shoulder and the shoulder angle is above 30 degrees
         elif (
             serve_phases["ball_release"]
             and not serve_phases["trophy"]
-            and abs(left_wrist[1] - min_left_wrist_y) < 10
         ):
-            serve_phases["trophy"] = True
-            key_moments.append(
-                {
-                    "frame": int(frame_idx),
-                    "timestamp": float(timestamp),
-                    "label": "Trophy Position",
-                    "confidence": float(np.mean(scores)) if scores is not None else 1.0,
-                }
-            )
-            print(
-                f"Detected Trophy Position at frame {frame_idx}, timestamp {timestamp:.2f}"
-            )
+            # Calculate shoulder angle
+            shoulder_vector = right_shoulder - left_shoulder
+            shoulder_angle = np.arctan2(shoulder_vector[1], shoulder_vector[0])
+            shoulder_angle_deg = np.degrees(shoulder_angle)
+
+            # Define threshold angle (adjust based on testing)
+            SHOULDER_ANGLE_THRESHOLD = 30  # degrees
+
+            rackets_in_frame = [r for r in racket_detections if r["frame"] == frame_idx]
+            if rackets_in_frame and abs(shoulder_angle_deg) > SHOULDER_ANGLE_THRESHOLD:
+                # Find racket above right shoulder
+                detected_racket = None
+                for racket in rackets_in_frame:
+                    racket_y = (racket["bbox"][1] + racket["bbox"][3]) / 2
+                    racket_x = (racket["bbox"][0] + racket["bbox"][2]) / 2
+
+                    # Check if racket is above right shoulder (lower y value means higher position)
+                    if racket_y < right_shoulder[1]:
+                        detected_racket = racket
+                        break
+
+                if detected_racket:
+                    serve_phases["trophy"] = True
+                    key_moments.append(
+                        {
+                            "frame": int(frame_idx),
+                            "timestamp": float(timestamp),
+                            "label": "Trophy Position",
+                            "confidence": float(detected_racket["confidence"]),
+                            "shoulder_angle": float(shoulder_angle_deg),
+                            "racket_position": {
+                                "x": float(
+                                    (
+                                        detected_racket["bbox"][0]
+                                        + detected_racket["bbox"][2]
+                                    )
+                                    / 2
+                                ),
+                                "y": float(
+                                    (
+                                        detected_racket["bbox"][1]
+                                        + detected_racket["bbox"][3]
+                                    )
+                                    / 2
+                                ),
+                            },
+                            "right_shoulder_position": {
+                                "x": float(right_shoulder[0]),
+                                "y": float(right_shoulder[1]),
+                            },
+                        }
+                    )
+                    print(
+                        f"Detected Trophy Position at frame {frame_idx}, timestamp {timestamp:.2f} (shoulder angle: {shoulder_angle_deg:.1f}°)"
+                    )
 
         # Racket Low Point: After trophy position, when racket is closest to right hand and at highest position
         elif (
