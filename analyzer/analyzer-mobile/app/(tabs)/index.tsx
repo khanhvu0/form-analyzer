@@ -1,7 +1,8 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useVideo } from '../../context/VideoContext';
 import VideoUpload from '../../components/VideoUpload';
+import { MaterialIcons } from '@expo/vector-icons';
 
 export default function TabOneScreen() {
   const { 
@@ -12,8 +13,12 @@ export default function TabOneScreen() {
     handleRemoveFirstVideo,
     handleRemoveSecondVideo,
     isUploading1,
-    isUploading2
+    isUploading2,
+    processVideos,
+    isProcessing
   } = useVideo();
+
+  const canProcess = firstVideo && secondVideo && !isProcessing;
 
   return (
     <ScrollView style={styles.container}>
@@ -40,6 +45,31 @@ export default function TabOneScreen() {
           fileName={secondVideo?.name}
           onRemove={handleRemoveSecondVideo}
         />
+
+        {canProcess && (
+          <TouchableOpacity 
+            style={styles.processButton}
+            onPress={processVideos}
+            disabled={isProcessing}
+          >
+            {isProcessing ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <>
+                <MaterialIcons name="play-arrow" size={24} color="#fff" />
+                <Text style={styles.processButtonText}>Process Videos</Text>
+              </>
+            )}
+          </TouchableOpacity>
+        )}
+
+        {isProcessing && (
+          <View style={styles.processingContainer}>
+            <ActivityIndicator size="large" color="#4CAF50" />
+            <Text style={styles.processingText}>Processing videos...</Text>
+            <Text style={styles.processingSubText}>This may take a few minutes</Text>
+          </View>
+        )}
       </View>
     </ScrollView>
   );
@@ -77,5 +107,38 @@ const styles = StyleSheet.create({
   },
   secondLabel: {
     marginTop: 32,
+  },
+  processButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#4CAF50',
+    padding: 16,
+    borderRadius: 8,
+    marginTop: 32,
+    marginBottom: 16,
+  },
+  processButtonText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: '600',
+    marginLeft: 8,
+  },
+  processingContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+    marginTop: 16,
+  },
+  processingText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#4CAF50',
+    marginTop: 16,
+  },
+  processingSubText: {
+    fontSize: 14,
+    color: '#666',
+    marginTop: 8,
   }
 });

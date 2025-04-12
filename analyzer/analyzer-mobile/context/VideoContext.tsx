@@ -1,15 +1,19 @@
 import React, { createContext, useContext, useState } from 'react';
 import { Alert } from 'react-native';
+import { uploadVideos, getProcessedVideoUrl, getVideoMoments, getVideoBalls } from '../services/api';
 
 interface VideoData {
   uri: string;
   name?: string;
+  processedUri?: string;
+  label?: string;
   moments?: Array<{
     frame: number;
     timestamp: number;
     label: string;
     confidence: number;
   }>;
+  balls?: any[];
 }
 
 interface VideoContextType {
@@ -21,6 +25,8 @@ interface VideoContextType {
   handleSecondVideoUpload: (files: Array<{ uri: string; name: string; type: string }>) => void;
   handleRemoveFirstVideo: () => void;
   handleRemoveSecondVideo: () => void;
+  processVideos: () => Promise<void>;
+  isProcessing: boolean;
 }
 
 const VideoContext = createContext<VideoContextType | undefined>(undefined);
@@ -32,6 +38,7 @@ export function VideoProvider({ children }: { children: React.ReactNode }) {
   const [secondVideo, setSecondVideo] = useState<VideoData | null>(null);
   const [isUploading1, setIsUploading1] = useState(false);
   const [isUploading2, setIsUploading2] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
 
   const handleFirstVideoUpload = async (files: Array<{ uri: string; name: string; type: string }>) => {
     console.log('handleFirstVideoUpload called with files:', files);
@@ -44,18 +51,9 @@ export function VideoProvider({ children }: { children: React.ReactNode }) {
       const file = files[0];
       setIsUploading1(true);
 
-      // Mock moments for now
-      const mockMoments = Array.from({ length: 5 }, (_, i) => ({
-        frame: Math.floor(Math.random() * 1000),
-        timestamp: i * 30,
-        label: 'Serve',
-        confidence: 0.85 + Math.random() * 0.15,
-      }));
-
       setFirstVideo({
         uri: file.uri,
         name: file.name,
-        moments: mockMoments,
       });
     } catch (error) {
       console.error('Upload error:', error);
@@ -76,18 +74,9 @@ export function VideoProvider({ children }: { children: React.ReactNode }) {
       const file = files[0];
       setIsUploading2(true);
 
-      // Mock moments for now
-      const mockMoments = Array.from({ length: 5 }, (_, i) => ({
-        frame: Math.floor(Math.random() * 1000),
-        timestamp: i * 30,
-        label: 'Serve',
-        confidence: 0.85 + Math.random() * 0.15,
-      }));
-
       setSecondVideo({
         uri: file.uri,
         name: file.name,
-        moments: mockMoments,
       });
     } catch (error) {
       console.error('Upload error:', error);
@@ -107,6 +96,71 @@ export function VideoProvider({ children }: { children: React.ReactNode }) {
     setSecondVideo(null);
   };
 
+  const processVideos = async () => {
+    if (!firstVideo || !secondVideo) {
+      Alert.alert('Error', 'Please upload both videos before processing.');
+      return;
+    }
+
+    try {
+      setIsProcessing(true);
+      
+      // Upload videos to the backend
+      const response = await uploadVideos(firstVideo.uri, secondVideo.uri);
+      
+      if (response.status === 'success') {
+        // Update the videos with processed data
+        const processedVideos = response.videos;
+        
+        // Find the corresponding processed videos
+        const firstProcessedVideo = processedVideos.find(v => v.label === 'Front View');
+        const secondProcessedVideo = processedVideos.find(v => v.label === 'Side View');
+        
+        if (firstProcessedVideo && secondProcessedVideo) {
+          // Get the processed video URLs
+          const firstProcessedUrl = getProcessedVideoUrl(firstProcessedVideo.name);
+          const secondProcessedUrl = getProcessedVideoUrl(secondProcessedVideo.name);
+          
+          // Fetch moments for both videos
+          const firstMoments = await getVideoMoments(firstProcessedVideo.name);
+          const secondMoments = await getVideoMoments(secondProcessedVideo.name);
+          
+          // Fetch ball detections for both videos
+          const firstBalls = await getVideoBalls(firstProcessedVideo.name);
+          const secondBalls = await getVideoBalls(secondProcessedVideo.name);
+          
+          // Update the video data with processed information
+          setFirstVideo(prev => ({
+            ...prev!,
+            processedUri: firstProcessedUrl,
+            label: firstProcessedVideo.label,
+            moments: firstMoments.moments,
+            balls: firstBalls,
+          }));
+          
+          setSecondVideo(prev => ({
+            ...prev!,
+            processedUri: secondProcessedUrl,
+            label: secondProcessedVideo.label,
+            moments: secondMoments.moments,
+            balls: secondBalls,
+          }));
+          
+          Alert.alert('Success', 'Videos processed successfully!');
+        } else {
+          throw new Error('Processed videos not found in response');
+        }
+      } else {
+        throw new Error(response.message || 'Failed to process videos');
+      }
+    } catch (error) {
+      console.error('Processing error:', error);
+      Alert.alert('Error', 'Failed to process videos. Please try again.');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
   const contextValue = {
     firstVideo,
     secondVideo,
@@ -116,6 +170,8 @@ export function VideoProvider({ children }: { children: React.ReactNode }) {
     handleSecondVideoUpload,
     handleRemoveFirstVideo,
     handleRemoveSecondVideo,
+    processVideos,
+    isProcessing,
   };
 
   console.log('VideoProvider rendering with context:', contextValue);

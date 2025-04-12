@@ -7,6 +7,8 @@ import numpy as np
 from werkzeug.utils import secure_filename
 from video_processor import VideoProcessor
 
+os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
+
 # Initialize Flask app with Vite frontend
 app = Flask(
     __name__,
@@ -136,6 +138,13 @@ def upload_videos():
         video1.save(video1_path)
         video2.save(video2_path)
 
+        # Get orientation information from form data
+        video1_orientation = int(request.form.get('video1_orientation', 0))
+        video2_orientation = int(request.form.get('video2_orientation', 0))
+        
+        print(f"Video 1 orientation: {video1_orientation}")
+        print(f"Video 2 orientation: {video2_orientation}")
+
         # Initialize video processor
         processor = VideoProcessor(device="cuda:0")
 
@@ -145,11 +154,11 @@ def upload_videos():
 
         output_path1 = os.path.join(OUTPUT_FOLDER, f"{video1_name}_pose.mp4")
         temp_dir1 = os.path.join(OUTPUT_FOLDER, f"temp_{video1_name}")
-        success1 = processor.process_video(video1_path, output_path1, temp_dir1)
+        success1 = processor.process_video(video1_path, output_path1, temp_dir1, orientation=video1_orientation)
 
         output_path2 = os.path.join(OUTPUT_FOLDER, f"{video2_name}_pose.mp4")
         temp_dir2 = os.path.join(OUTPUT_FOLDER, f"temp_{video2_name}")
-        success2 = processor.process_video(video2_path, output_path2, temp_dir2)
+        success2 = processor.process_video(video2_path, output_path2, temp_dir2, orientation=video2_orientation)
 
         # Clean up
         shutil.rmtree(temp_dir1, ignore_errors=True)
