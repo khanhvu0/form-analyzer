@@ -143,19 +143,26 @@ def detect_key_moments(
     ball_velocities = []
 
     # Now process frames for key moments
-    for frame_idx, result in enumerate(keypoints_results):
+    i = 0
+    while i < len(keypoints_results):
+        result = keypoints_results[i]
+        frame_idx = i
+
         # Skip if no predictions
         if not result or "predictions" not in result or not result["predictions"]:
+            i += 1
             continue
 
         # Get predictions for the first person
         predictions = result["predictions"][0]
         if not predictions:
+            i += 1
             continue
 
         # Get keypoints of the first person detected
         person = predictions[0]
         if "keypoints" not in person:
+            i += 1
             continue
 
         # Convert keypoints to numpy array if it's not already
@@ -168,6 +175,7 @@ def detect_key_moments(
 
         # Skip if confidence is too low
         if scores is not None and np.mean(scores) < 0.3:  # Reduced confidence threshold
+            i += 1
             continue
 
         # Get relevant keypoint coordinates
@@ -175,6 +183,8 @@ def detect_key_moments(
         right_wrist = keypoints[RIGHT_WRIST][:2]
         left_shoulder = keypoints[LEFT_SHOULDER][:2]
         right_shoulder = keypoints[RIGHT_SHOULDER][:2]
+        right_elbow = keypoints[RIGHT_ELBOW][:2]
+        right_ankle = keypoints[RIGHT_ANKLE][:2]
 
         # Calculate body measurements for relative scaling
         shoulder_width = np.linalg.norm(right_shoulder - left_shoulder)
@@ -200,6 +210,8 @@ def detect_key_moments(
                     "confidence": float(np.mean(scores)) if scores is not None else 1.0,
                 }
             )
+            i += 1
+            continue
 
         # Ball Release: When the ball leaves the left hand (needs ball detection data)
         elif (
@@ -249,12 +261,11 @@ def detect_key_moments(
                     print(
                         f"Detected Ball Release at frame {frame_idx}, timestamp {timestamp:.2f}"
                     )
+            i += 1
+            continue
 
         # Trophy Position: When the racket is above the right shoulder and the shoulder angle is above 30 degrees
-        elif (
-            serve_phases["ball_release"]
-            and not serve_phases["trophy"]
-        ):
+        elif serve_phases["ball_release"] and not serve_phases["trophy"]:
             # Calculate shoulder angle
             shoulder_vector = right_shoulder - left_shoulder
             shoulder_angle = np.arctan2(shoulder_vector[1], shoulder_vector[0])
@@ -310,6 +321,8 @@ def detect_key_moments(
                     print(
                         f"Detected Trophy Position at frame {frame_idx}, timestamp {timestamp:.2f} (shoulder angle: {shoulder_angle_deg:.1f}°)"
                     )
+            i += 1
+            continue
 
         # Racket Low Point: After trophy position, when racket is closest to right hand and at highest position
         elif (
@@ -393,6 +406,8 @@ def detect_key_moments(
                     print(
                         f"Detected Racket Low Point at frame {frame_idx}, timestamp {timestamp:.2f}"
                     )
+            i += 1
+            continue
 
         # Ball Impact: Detect when racket is at its highest position
         elif (
@@ -410,7 +425,7 @@ def detect_key_moments(
                 # Calculate the midpoint of the racket bounding box
                 racket_y = (racket["bbox"][1] + racket["bbox"][3]) / 2
                 racket_x = (racket["bbox"][0] + racket["bbox"][2]) / 2
-                
+
                 # Only consider rackets that are close to the right wrist
                 if racket_y < highest_racket_y:
                     highest_racket_y = racket_y
@@ -449,24 +464,63 @@ def detect_key_moments(
                     f"Detected Ball Impact at frame {impact_frame}, timestamp {impact_timestamp:.2f} (global highest racket)"
                 )
 
-        # Follow Through: Right foot (ankle) at its highest position
-        elif (
-            serve_phases["impact"]
-            and not serve_phases["follow_through"]
-            and abs(right_ankle[1] - min_right_ankle_y) < 10
-        ):
-            serve_phases["follow_through"] = True
-            key_moments.append(
-                {
-                    "frame": int(frame_idx),
-                    "timestamp": float(timestamp),
-                    "label": "Follow Through",
-                    "confidence": float(np.mean(scores)) if scores is not None else 1.0,
-                }
-            )
-            print(
-                f"Detected Follow Through at frame {frame_idx}, timestamp {timestamp:.2f}"
-            )
+                # Skip ahead to the impact frame
+                i = impact_frame
+                continue
+
+        # Follow Through: When the angle between shoulders and right elbow is less than 160 degrees
+        elif serve_phases["impact"] and not serve_phases["follow_through"]:
+            # Calculate vectors for angle calculation
+            shoulder_vector = right_shoulder - left_shoulder
+            elbow_vector = right_elbow - right_shoulder
+
+            # Calculate angle between vectors using dot product
+            dot_product = np.dot(shoulder_vector, elbow_vector)
+            shoulder_magnitude = np.linalg.norm(shoulder_vector)
+            elbow_magnitude = np.linalg.norm(elbow_vector)
+
+            # Avoid division by zero
+            if shoulder_magnitude > 0 and elbow_magnitude > 0:
+                cos_angle = dot_product / (shoulder_magnitude * elbow_magnitude)
+                # Clamp cos_angle to valid range [-1, 1] to avoid numerical errors
+                cos_angle = np.clip(cos_angle, -1.0, 1.0)
+                angle_deg = np.degrees(np.arccos(cos_angle))
+
+                # Define threshold angle (160 degrees)
+                FOLLOW_THROUGH_ANGLE_THRESHOLD = 30
+
+                if angle_deg > FOLLOW_THROUGH_ANGLE_THRESHOLD:
+                    serve_phases["follow_through"] = True
+                    key_moments.append(
+                        {
+                            "frame": int(frame_idx),
+                            "timestamp": float(timestamp),
+                            "label": "Follow Through",
+                            "confidence": (
+                                float(np.mean(scores)) if scores is not None else 1.0
+                            ),
+                            "shoulder_elbow_angle": float(angle_deg),
+                            "right_elbow_position": {
+                                "x": float(right_elbow[0]),
+                                "y": float(right_elbow[1]),
+                            },
+                            "right_shoulder_position": {
+                                "x": float(right_shoulder[0]),
+                                "y": float(right_shoulder[1]),
+                            },
+                            "left_shoulder_position": {
+                                "x": float(left_shoulder[0]),
+                                "y": float(left_shoulder[1]),
+                            },
+                        }
+                    )
+                    print(
+                        f"Detected Follow Through at frame {frame_idx}, timestamp {timestamp:.2f} (angle: {angle_deg:.1f}°)"
+                    )
+            i += 1
+            continue
+
+        i += 1
 
     # Sort key moments by frame index
     key_moments.sort(key=lambda x: x["frame"])
