@@ -8,7 +8,6 @@ interface VideoUploadProps {
   onUpload: (files: Array<{ uri: string; name: string; type: string }>) => void;
   isUploading?: boolean;
   isUploaded?: boolean;
-  fileName?: string;
   onRemove?: () => void;
 }
 
@@ -16,10 +15,9 @@ const VideoUpload: React.FC<VideoUploadProps> = ({
   onUpload, 
   isUploading = false, 
   isUploaded = false,
-  fileName = '',
   onRemove
 }) => {
-  console.log('VideoUpload rendering with props:', { onUpload, isUploading, isUploaded, fileName });
+  console.log('VideoUpload rendering with props:', { onUpload, isUploading, isUploaded });
 
   const handleGalleryPick = async () => {
     console.log('handleGalleryPick called');
@@ -104,10 +102,6 @@ const VideoUpload: React.FC<VideoUploadProps> = ({
         <Text style={styles.uploadedText}>
           Video Uploaded Successfully
         </Text>
-        {fileName ? (
-          <Text style={styles.fileName}>{fileName}</Text>
-        ) : null}
-        
         <TouchableOpacity 
           style={styles.removeButton}
           onPress={handleRemove}
@@ -215,12 +209,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#2E7D32',
-  },
-  fileName: {
-    fontSize: 14,
-    color: '#666',
-    marginTop: 8,
-    maxWidth: '100%',
   },
   removeButton: {
     flexDirection: 'row',

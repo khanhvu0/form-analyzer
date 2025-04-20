@@ -410,13 +410,8 @@
                 video.controls = true;
                 video.style.maxWidth = '100%';
                 
-                const label = document.createElement('div');
-                label.className = 'preview-label';
-                label.textContent = file.name;
-                
                 preview.innerHTML = '';
                 preview.appendChild(video);
-                preview.appendChild(label);
                 preview.style.display = 'block';
                 
                 const reader = new FileReader();

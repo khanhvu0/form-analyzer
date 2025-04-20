@@ -33,7 +33,6 @@ export default function TabOneScreen() {
           onUpload={handleFirstVideoUpload} 
           isUploading={isUploading1}
           isUploaded={!!firstVideo}
-          fileName={firstVideo?.name}
           onRemove={handleRemoveFirstVideo}
         />
 
@@ -42,7 +41,6 @@ export default function TabOneScreen() {
           onUpload={handleSecondVideoUpload} 
           isUploading={isUploading2}
           isUploaded={!!secondVideo}
-          fileName={secondVideo?.name}
           onRemove={handleRemoveSecondVideo}
         />
 
