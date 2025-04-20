@@ -145,16 +145,44 @@ export const getProcessedVideoUrl = (videoName: string): string => {
  */
 export const getVideoMoments = async (videoName: string): Promise<VideoMetadata> => {
   try {
-    const response = await fetch(getApiUrl(`/moments/${videoName}`));
+    const url = getApiUrl(`/moments/${videoName}`);
+    console.log(`Fetching moments from URL: ${url}`);
+    
+    const response = await fetch(url);
+    console.log(`Moments response status: ${response.status}`);
     
     if (!response.ok) {
-      throw new Error('Failed to fetch video moments');
+      console.error(`Error response from moments API: ${response.statusText}`);
+      return { moments: [] };
     }
     
-    return await response.json();
+    const data = await response.json();
+    console.log(`Moments data received:`, data);
+    
+    // Ensure data has correct structure, return empty moments if not
+    if (!data || typeof data !== 'object') {
+      console.warn('Moments data is not an object, using empty array');
+      return { moments: [] };
+    }
+    
+    // If data is already formatted correctly with moments property
+    if (data.moments && Array.isArray(data.moments)) {
+      return data;
+    }
+    
+    // If data is just an array, wrap it in the correct format
+    if (Array.isArray(data)) {
+      console.warn('Moments data is an array, wrapping in moments object');
+      return { moments: data };
+    }
+    
+    // Default case, return empty moments
+    console.warn('Moments data has unexpected format, using empty array');
+    return { moments: [] };
   } catch (error) {
     console.error('Error fetching video moments:', error);
-    throw error;
+    // Return empty moments array on error
+    return { moments: [] };
   }
 };
 

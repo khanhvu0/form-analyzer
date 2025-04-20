@@ -6,6 +6,7 @@ import shutil
 import numpy as np
 from werkzeug.utils import secure_filename
 from video_processor import VideoProcessor
+import json
 
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 
@@ -212,11 +213,15 @@ def get_moments(video_name):
         )
         if os.path.exists(moments_file):
             with open(moments_file, "r") as f:
-                moments = f.read()
-            return moments
-        return jsonify([])
+                # Load moments as JSON, then wrap in proper response format
+                moments_data = json.loads(f.read())
+                # Return moments wrapped in an object with 'moments' property
+                return jsonify({"moments": moments_data})
+        # Return empty moments array in proper format
+        return jsonify({"moments": []})
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        print(f"Error getting moments for {video_name}: {str(e)}")
+        return jsonify({"error": str(e), "moments": []}), 500
 
 
 @app.route("/api/balls/<video_name>")
