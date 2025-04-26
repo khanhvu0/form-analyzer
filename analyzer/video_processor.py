@@ -47,8 +47,7 @@ class VideoProcessor:
         # Try to use FFMPEG if available for better compatibility
         try:
             import subprocess
-
-            ffmpeg_cmd = f'ffmpeg -i "{input_path}" -c:v libx264 -preset medium -crf 23 -y "{output_path}"'
+            ffmpeg_cmd = f'ffmpeg -i "{input_path}" -pix_fmt yuv420p -c:v libx264 -profile:v baseline -level 3.0 -preset medium -crf 23 -movflags +faststart -y "{output_path}"'
             print(f"Attempting to use FFMPEG: {ffmpeg_cmd}")
             result = subprocess.run(
                 ffmpeg_cmd, shell=True, capture_output=True, text=True
@@ -158,7 +157,7 @@ class VideoProcessor:
                     elif class_id == 38:  # Tennis racket
                         racket_detections.append(detection)
                         racket_count += 1
-                print(f"Found {ball_count} balls and {racket_count} rackets")
+                # print(f"Found {ball_count} balls and {racket_count} rackets")
 
             frame_idx += 1
 
@@ -167,7 +166,7 @@ class VideoProcessor:
         )
         return ball_detections, racket_detections
 
-    def process_video(self, video_path, output_path, temp_dir):
+    def process_video(self, video_path, output_path, temp_dir, orientation=0):
         """Process a video and save results with pose estimation, ball detection, and key moments."""
         try:
             os.makedirs(temp_dir, exist_ok=True)
@@ -175,17 +174,111 @@ class VideoProcessor:
 
             # Get video FPS
             fps = self.get_video_fps(video_path)
+            
+            # Handle video orientation if needed
+            if orientation != 0:
+                print(f"Rotating video by {orientation} degrees")
+                rotated_video_path = os.path.join(temp_dir, "rotated_video.mp4")
+                self.rotate_video(video_path, rotated_video_path, orientation)
+                
+                # Verify the rotated video is valid
+                if not self.check_video_file(rotated_video_path):
+                    print("Warning: Rotated video appears to be corrupted, attempting to fix...")
+                    
+                    # Try to fix NAL unit errors first (common after rotation)
+                    temp_fixed_path = os.path.join(temp_dir, "rotated_fixed.mp4")
+                    if self.fix_nal_errors(rotated_video_path, temp_fixed_path):
+                        print("Successfully fixed NAL errors in rotated video")
+                        if self.check_video_file(temp_fixed_path):
+                            rotated_video_path = temp_fixed_path
+                        else:
+                            print("Warning: Fixed video still has issues, trying general re-encoding...")
+                            temp_reencoded_path = os.path.join(temp_dir, "rotated_reencoded.mp4")
+                            self.reencode_video(rotated_video_path, temp_reencoded_path)
+                            if self.check_video_file(temp_reencoded_path):
+                                rotated_video_path = temp_reencoded_path
+                            else:
+                                print("Warning: Could not fix rotated video, using original...")
+                                rotated_video_path = video_path
+                    else:
+                        # Try general re-encoding as fallback
+                        print("Warning: NAL error fixing failed, trying general re-encoding...")
+                        temp_reencoded_path = os.path.join(temp_dir, "rotated_reencoded.mp4")
+                        self.reencode_video(rotated_video_path, temp_reencoded_path)
+                        if self.check_video_file(temp_reencoded_path):
+                            rotated_video_path = temp_reencoded_path
+                        else:
+                            print("Warning: Could not fix rotated video, using original...")
+                            rotated_video_path = video_path
+                        
+                video_path = rotated_video_path
 
             # Run pose detection
             print("Processing frames with MMPose...")
-            result_generator = self.pose_inferencer(
-                video_path, show=False, vis_out_dir=temp_dir, radius=4, thickness=2
-            )
+            try:
+                result_generator = self.pose_inferencer(
+                    video_path, show=False, vis_out_dir=temp_dir, radius=4, thickness=2
+                )
 
-            # Collect pose results
-            pose_results = []
-            for result in result_generator:
-                pose_results.append(result)
+                # Collect pose results
+                pose_results = []
+                for result in result_generator:
+                    pose_results.append(result)
+                
+                # Count the actual results obtained
+                actual_frame_count = len(pose_results)
+                
+                # Check cap frames vs processed frames
+                cap = cv2.VideoCapture(video_path)
+                expected_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+                cap.release()
+                
+                print(f"MMPose processed {actual_frame_count} frames out of {expected_frames} expected frames")
+                
+                # If we have significantly fewer frames than expected, try frame extraction
+                if actual_frame_count < expected_frames * 0.9 and expected_frames > 10:
+                    print(f"Warning: MMPose only processed {actual_frame_count}/{expected_frames} frames")
+                    print("Trying frame-by-frame extraction method...")
+                    
+                    # Extract frames for direct processing
+                    frame_paths, video_fps = self.extract_frames_for_mmpose(video_path, temp_dir)
+                    
+                    if len(frame_paths) > actual_frame_count:
+                        print(f"Successfully extracted {len(frame_paths)} frames, reprocessing with MMPose...")
+                        # Process extracted frames with MMPose
+                        result_generator = self.pose_inferencer(
+                            frame_paths, show=False, vis_out_dir=temp_dir, radius=4, thickness=2
+                        )
+                        
+                        # Collect new pose results
+                        pose_results = []
+                        for result in result_generator:
+                            pose_results.append(result)
+                            
+                        print(f"MMPose processed {len(pose_results)} frames using extraction method")
+            except Exception as e:
+                print(f"Error during MMPose processing: {str(e)}")
+                print("Trying frame-by-frame extraction as fallback...")
+                
+                # Extract frames for direct processing
+                frame_paths, video_fps = self.extract_frames_for_mmpose(video_path, temp_dir)
+                
+                if len(frame_paths) > 0:
+                    print(f"Successfully extracted {len(frame_paths)} frames, processing with MMPose...")
+                    # Process extracted frames with MMPose
+                    result_generator = self.pose_inferencer(
+                        frame_paths, show=False, vis_out_dir=temp_dir, radius=4, thickness=2
+                    )
+                    
+                    # Collect pose results
+                    pose_results = []
+                    for result in result_generator:
+                        pose_results.append(result)
+                        
+                    print(f"MMPose processed {len(pose_results)} frames using extraction fallback method")
+                else:
+                    print("Frame extraction failed, cannot proceed with pose estimation")
+                    return False
 
             # Look for pose visualization video
             temp_files = os.listdir(temp_dir)
@@ -197,7 +290,13 @@ class VideoProcessor:
 
             # Get pose visualization video path
             temp_video_path = os.path.join(temp_dir, vis_files[0])
-
+            
+            # Get total frame count for the video
+            cap = cv2.VideoCapture(video_path)
+            total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+            cap.release()
+            print(f"Total frames in video: {total_frames}")
+            
             # Detect balls and rackets
             ball_detections, racket_detections = self.detect_objects(video_path, fps)
 
@@ -388,4 +487,103 @@ class VideoProcessor:
 
         cap.release()
         out.release()
-        print(f"Debug visualization saved to: {output_path}")
+        print(f"Debugging visualization saved to: {output_path} with {frame_idx} frames processed")
+
+    # def fix_nal_errors(self, input_path, output_path):
+    #     """Fix NAL unit errors in H264 videos by reencoding with stricter parameters."""
+    #     try:
+    #         import subprocess
+    #         print(f"Attempting to fix NAL unit errors in {input_path}")
+            
+    #         # First pass: Decode to raw frames to avoid carrying over any NAL issues
+    #         temp_yuv = f"{output_path}.temp.yuv"
+    #         decode_cmd = f'ffmpeg -i "{input_path}" -f rawvideo -pix_fmt yuv420p -y "{temp_yuv}"'
+            
+    #         print(f"Decoding to raw format: {decode_cmd}")
+    #         result1 = subprocess.run(decode_cmd, shell=True, capture_output=True, text=True)
+            
+    #         if result1.returncode != 0:
+    #             print(f"Raw decoding failed: {result1.stderr}")
+    #             print("Trying alternate method...")
+                
+    #             # Alternative approach: use a very strict H264 encoding
+    #             strict_cmd = f'ffmpeg -i "{input_path}" -c:v libx264 -profile:v baseline -level 3.0 -pix_fmt yuv420p -preset slow -crf 18 -movflags +faststart -y "{output_path}"'
+    #             print(f"Reencoding with strict parameters: {strict_cmd}")
+    #             result3 = subprocess.run(strict_cmd, shell=True, capture_output=True, text=True)
+                
+    #             if result3.returncode == 0:
+    #                 print("Strict reencoding completed successfully")
+    #                 if os.path.exists(temp_yuv):
+    #                     os.remove(temp_yuv)
+    #                 return True
+    #             else:
+    #                 print(f"Strict reencoding failed: {result3.stderr}")
+    #                 return False
+            
+    #         # Second pass: Re-encode to H264 with strict parameters
+    #         encode_cmd = f'ffmpeg -f rawvideo -pix_fmt yuv420p -s {self.get_video_info(input_path)[0]}x{self.get_video_info(input_path)[1]} -r {self.get_video_info(input_path)[2]} -i "{temp_yuv}" -c:v libx264 -profile:v baseline -level 3.0 -preset medium -crf 18 -movflags +faststart -y "{output_path}"'
+            
+    #         print(f"Reencoding from raw: {encode_cmd}")
+    #         result2 = subprocess.run(encode_cmd, shell=True, capture_output=True, text=True)
+            
+    #         # Clean up temp file
+    #         if os.path.exists(temp_yuv):
+    #             os.remove(temp_yuv)
+                
+    #         if result2.returncode == 0:
+    #             print("NAL error fixing completed successfully")
+    #             return True
+    #         else:
+    #             print(f"Reencoding failed: {result2.stderr}")
+    #             return False
+                
+    #     except Exception as e:
+    #         print(f"Error fixing NAL units: {str(e)}")
+    #         return False
+
+    def extract_frames_for_mmpose(self, video_path, temp_dir):
+        """
+        Extract frames from a video and save as PNG for MMPose direct processing.
+        This is a fallback method when normal video processing fails.
+        Returns a list of frame paths.
+        """
+        print(f"Extracting frames from {video_path} for direct MMPose processing...")
+        
+        # Create frames directory
+        frames_dir = os.path.join(temp_dir, "frames")
+        os.makedirs(frames_dir, exist_ok=True)
+        
+        # Open video file
+        cap = cv2.VideoCapture(video_path)
+        
+        # Get video properties
+        width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+        height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        fps = cap.get(cv2.CAP_PROP_FPS)
+        total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+        
+        print(f"Extracting {total_frames} frames from {width}x{height} video at {fps}fps")
+        
+        # Extract frames
+        frame_paths = []
+        frame_count = 0
+        
+        while True:
+            ret, frame = cap.read()
+            if not ret:
+                break
+                
+            # Save frame as PNG (lossless)
+            frame_path = os.path.join(frames_dir, f"frame_{frame_count:06d}.png")
+            cv2.imwrite(frame_path, frame)
+            frame_paths.append(frame_path)
+            
+            frame_count += 1
+            if frame_count % 30 == 0:
+                progress = (frame_count / total_frames) * 100 if total_frames > 0 else 0
+                print(f"Extracted {frame_count}/{total_frames} frames ({progress:.1f}%)...")
+        
+        cap.release()
+        print(f"Successfully extracted {frame_count} frames to {frames_dir}")
+        
+        return frame_paths, fps

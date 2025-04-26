@@ -13,12 +13,6 @@ const VideoPreview = styled("div")({
   maxWidth: "300px",
 });
 
-const PreviewLabel = styled("div")({
-  fontSize: "0.9em",
-  color: "#666",
-  marginTop: "5px",
-});
-
 interface VideoUploadProps {
   onUpload: (videos: File[]) => Promise<void>;
 }
@@ -100,12 +94,6 @@ const VideoUpload: React.FC<VideoUploadProps> = ({ onUpload }) => {
                 }}
                 src={preview1}
               />
-              <PreviewLabel>
-                {
-                  (document.getElementById("video1") as HTMLInputElement)
-                    ?.files?.[0]?.name
-                }
-              </PreviewLabel>
             </VideoPreview>
           )}
         </Box>
@@ -135,12 +123,6 @@ const VideoUpload: React.FC<VideoUploadProps> = ({ onUpload }) => {
                 }}
                 src={preview2}
               />
-              <PreviewLabel>
-                {
-                  (document.getElementById("video2") as HTMLInputElement)
-                    ?.files?.[0]?.name
-                }
-              </PreviewLabel>
             </VideoPreview>
           )}
         </Box>

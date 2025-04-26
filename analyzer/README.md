@@ -51,6 +51,32 @@ The frontend will be available at http://localhost:5173 (or another port if 5173
 
 Note: Make sure you have Node.js (v16 or later) installed on your system before running the frontend.
 
+# React Native App
+The mobile application is built with React Native using Expo, providing a native mobile experience for video analysis.
+
+### Prerequisites
+
+- Node.js (v14 or later)
+- Expo CLI: `npm install -g expo-cli`
+- Expo Go app on your mobile device (for testing)
+
+### Setup and Running
+
+1. Navigate to the mobile app directory:
+```bash
+cd analyzer-mobile
+```
+
+2. Install dependencies:
+```bash
+npm install
+```
+
+3. Start the Expo development server:
+```bash
+npx expo start
+```
+
 03/29 22:40:31 - mmengine - INFO - the output video has been saved at C:\Users\quanv\mmpose\mmpose\analyzer\output\temp_alcaraz_test\alcaraz_test.mp4
 Re-encoding video from C:\Users\quanv\mmpose\mmpose\analyzer\output\temp_alcaraz_test\alcaraz_test.mp4 to C:\Users\quanv\mmpose\mmpose\analyzer\output\temp_alcaraz_test\temp_output.mp4
 
