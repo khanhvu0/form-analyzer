@@ -26,7 +26,7 @@ interface KeyMoment {
   [key: string]: any; // For any other fields that might be present
 }
 
-interface VideoData {
+export interface VideoData {
   uri: string;
   name?: string;
   processedUri?: string;

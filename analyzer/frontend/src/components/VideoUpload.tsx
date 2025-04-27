@@ -14,14 +14,24 @@ const VideoPreview = styled("div")({
 });
 
 interface VideoUploadProps {
-  onUpload: (videos: File[]) => Promise<void>;
+  onUpload: (
+    video1: File,
+    video2: File,
+    orientation1: number,
+    orientation2: number
+  ) => Promise<void>;
+  isLoading: boolean;
+  error: string | null;
 }
 
-const VideoUpload: React.FC<VideoUploadProps> = ({ onUpload }) => {
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+const VideoUpload: React.FC<VideoUploadProps> = ({
+  onUpload,
+  isLoading,
+  error,
+}) => {
   const [preview1, setPreview1] = useState<string | null>(null);
   const [preview2, setPreview2] = useState<string | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
 
   const handleVideoPreview = (
     file: File | null,
@@ -40,26 +50,21 @@ const VideoUpload: React.FC<VideoUploadProps> = ({ onUpload }) => {
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setLoading(true);
-    setError(null);
+    setFormError(null);
 
     const formData = new FormData(e.currentTarget);
     const video1 = formData.get("video1") as File;
     const video2 = formData.get("video2") as File;
 
+    const orientation1 = 0;
+    const orientation2 = 0;
+
     if (!video1 || !video2) {
-      setError("Please select both videos");
-      setLoading(false);
+      setFormError("Please select both videos");
       return;
     }
 
-    try {
-      await onUpload([video1, video2]);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Error processing videos");
-    } finally {
-      setLoading(false);
-    }
+    onUpload(video1, video2, orientation1, orientation2);
   };
 
   return (
@@ -127,15 +132,22 @@ const VideoUpload: React.FC<VideoUploadProps> = ({ onUpload }) => {
           )}
         </Box>
 
-        <Button
-          type="submit"
-          variant="contained"
-          color="primary"
-          disabled={loading}
-          sx={{ mt: 2 }}
-        >
-          {loading ? <CircularProgress size={24} /> : "Process Videos"}
-        </Button>
+        {formError && (
+          <Alert severity="warning" sx={{ mt: 2, mb: 1 }}>
+            {formError}
+          </Alert>
+        )}
+
+        <Box sx={{ display: 'flex', justifyContent: 'flex-start', mt: 2 }}>
+          <Button
+            type="submit"
+            variant="contained"
+            color="primary"
+            disabled={isLoading}
+          >
+            {isLoading ? <CircularProgress size={24} /> : "Process Videos"}
+          </Button>
+        </Box>
       </form>
 
       {error && (

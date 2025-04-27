@@ -3,8 +3,10 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator
 import { useVideo } from '../../context/VideoContext';
 import VideoUpload from '../../components/VideoUpload';
 import { MaterialIcons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 
 export default function TabOneScreen() {
+  const router = useRouter();
   const { 
     firstVideo, 
     secondVideo, 
@@ -25,6 +27,12 @@ export default function TabOneScreen() {
       <View style={styles.header}>
         <Text style={styles.title}>Form Analyzer</Text>
         <Text style={styles.subtitle}>Upload two videos to compare your form and then go to the analysis page.</Text>
+        <TouchableOpacity 
+          style={styles.exampleButton}
+          onPress={() => router.push('/example')}
+        >
+          <Text style={styles.exampleButtonText}>Show Example</Text>
+        </TouchableOpacity>
       </View>
 
       <View style={styles.uploadContainer}>
@@ -93,6 +101,20 @@ const styles = StyleSheet.create({
     fontSize: 18,
     color: '#666',
     marginBottom: 20,
+  },
+  exampleButton: {
+    backgroundColor: '#e0e0e0',
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    alignSelf: 'center',
+    marginTop: -10,
+    marginBottom: 20,
+  },
+  exampleButtonText: {
+    color: '#333',
+    fontSize: 16,
+    fontWeight: '500',
   },
   uploadContainer: {
     padding: 20,

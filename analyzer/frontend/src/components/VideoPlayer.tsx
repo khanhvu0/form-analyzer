@@ -136,16 +136,33 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ url, label, videoName }) => {
   };
 
   return (
-    <Paper sx={{ p: 2, mb: 2 }}>
+    <Paper sx={{ 
+      p: 2, 
+      mb: 2, 
+      width: '100%',
+      display: 'flex',
+      flexDirection: 'column',
+      backgroundColor: '#f0f0f0' // Debug color
+    }}>
       <Typography variant="h6" gutterBottom>
         {label}
       </Typography>
 
-      <Box sx={{ position: "relative", mb: 2 }}>
+      <Box sx={{ 
+        position: "relative", 
+        flex: 1,
+        minHeight: '300px',
+        backgroundColor: '#e0e0e0' // Debug color
+      }}>
         <video
           ref={videoRef}
           controls
-          style={{ width: "100%", maxWidth: "500px" }}
+          style={{ 
+            width: "100%", 
+            height: "100%", 
+            objectFit: "cover",
+            backgroundColor: '#d0d0d0' // Debug color
+          }}
           src={url}
         />
         <IconButton

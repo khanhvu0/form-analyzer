@@ -1,15 +1,19 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, Text, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
-import { useVideo } from '../../context/VideoContext';
+import { useVideo, VideoData } from '../../context/VideoContext';
 import { Video, ResizeMode } from 'expo-av';
 import { MaterialIcons } from '@expo/vector-icons';
 import KeyMomentsDisplay from '../../components/KeyMomentsDisplay';
 
 export default function AnalysisScreen() {
   const { firstVideo, secondVideo } = useVideo();
+  
   const [activeTab, setActiveTab] = useState<'videos' | 'moments'>('videos');
 
-  if (!firstVideo || !secondVideo) {
+  const video1 = firstVideo;
+  const video2 = secondVideo;
+
+  if (!video1 || !video2) {
     return (
       <View style={styles.emptyContainer}>
         <MaterialIcons name="videocam-off" size={64} color="#ccc" />
@@ -18,73 +22,55 @@ export default function AnalysisScreen() {
       </View>
     );
   }
-
+  
   const renderVideoSection = () => {
+    if (!video1 || !video2) return null;
+
     return (
       <View style={styles.videoSection}>
         <View style={styles.videoContainer}>
-          <Text style={styles.videoLabel}>{firstVideo.label || 'Front View'}</Text>
-          {firstVideo.processedUri ? (
-            <Video
-              source={{ uri: firstVideo.processedUri }}
-              style={styles.video}
-              resizeMode={ResizeMode.CONTAIN}
-              useNativeControls
-              shouldPlay={false}
-              isLooping={false}
-            />
-          ) : (
-            <Video
-              source={{ uri: firstVideo.uri }}
-              style={styles.video}
-              resizeMode={ResizeMode.CONTAIN}
-              useNativeControls
-              shouldPlay={false}
-              isLooping={false}
-            />
-          )}
+          <Text style={styles.videoLabel}>{video1.label || 'Video 1'}</Text>
+          <Video
+            source={{ uri: video1.processedUri || video1.uri }}
+            style={styles.video}
+            resizeMode={ResizeMode.COVER}
+            useNativeControls
+            shouldPlay={false}
+            isLooping={false}
+          />
         </View>
 
         <View style={styles.videoContainer}>
-          <Text style={styles.videoLabel}>{secondVideo.label || 'Side View'}</Text>
-          {secondVideo.processedUri ? (
-            <Video
-              source={{ uri: secondVideo.processedUri }}
-              style={styles.video}
-              resizeMode={ResizeMode.CONTAIN}
-              useNativeControls
-              shouldPlay={false}
-              isLooping={false}
-            />
-          ) : (
-            <Video
-              source={{ uri: secondVideo.uri }}
-              style={styles.video}
-              resizeMode={ResizeMode.CONTAIN}
-              useNativeControls
-              shouldPlay={false}
-              isLooping={false}
-            />
-          )}
+          <Text style={styles.videoLabel}>{video2.label || 'Video 2'}</Text>
+          <Video
+            source={{ uri: video2.processedUri || video2.uri }}
+            style={styles.video}
+            resizeMode={ResizeMode.COVER}
+            useNativeControls
+            shouldPlay={false}
+            isLooping={false}
+          />
         </View>
       </View>
     );
   };
 
   const renderMomentsSection = () => {
-    if (!firstVideo.moments || !secondVideo.moments) {
-      return (
+    if (!video1 || !video2) return null;
+
+    if (!video1.moments || !video2.moments || video1.moments.length === 0 || video2.moments.length === 0) {
+       return (
         <View style={styles.emptyMomentsContainer}>
           <Text style={styles.emptyMomentsText}>No key moments available</Text>
-          <Text style={styles.emptyMomentsSubText}>Process the videos to see key moments</Text>
+          <Text style={styles.emptyMomentsSubText}>Process the videos to generate key moments</Text>
         </View>
       );
     }
 
     return (
       <KeyMomentsDisplay 
-        video1={firstVideo}
-        video2={secondVideo}
+        video1={video1}
+        video2={video2}
       />
     );
   };
@@ -143,6 +129,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#666',
     marginTop: 16,
+    textAlign: 'center',
   },
   emptySubText: {
     fontSize: 16,
@@ -185,6 +172,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#e0e0e0',
     position: 'relative',
+    minHeight: 250, 
   },
   video: {
     flex: 1,
@@ -192,19 +180,16 @@ const styles = StyleSheet.create({
   },
   videoLabel: {
     position: 'absolute',
-    top: 16,
-    left: 16,
-    fontSize: 22,
+    top: 10,
+    left: 10,
+    fontSize: 18,
     fontWeight: '600',
     color: '#fff',
-    textShadowColor: 'rgba(0, 0, 0, 0.75)',
-    textShadowOffset: { width: 1, height: 1 },
-    textShadowRadius: 2,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
     zIndex: 10,
-  },
-  momentsContainer: {
-    flex: 1,
-    padding: 16,
   },
   emptyMomentsContainer: {
     flex: 1,
@@ -216,51 +201,12 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '600',
     color: '#666',
+    textAlign: 'center',
   },
   emptyMomentsSubText: {
     fontSize: 16,
     color: '#999',
     marginTop: 8,
     textAlign: 'center',
-  },
-  momentsSection: {
-    marginBottom: 24,
-  },
-  momentsTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 16,
-  },
-  momentItem: {
-    backgroundColor: '#f5f5f5',
-    borderRadius: 8,
-    padding: 16,
-    marginBottom: 12,
-  },
-  momentHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  momentLabel: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
-  },
-  momentConfidence: {
-    fontSize: 14,
-    color: '#4CAF50',
-    fontWeight: '500',
-  },
-  momentTime: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 4,
-  },
-  momentFrame: {
-    fontSize: 14,
-    color: '#666',
   },
 }); 
