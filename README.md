@@ -1,12 +1,15 @@
-# Tennis Serve Analysis
+# Tennis Serve Analyzer
 
-A web application for analyzing tennis serves using computer vision and pose estimation. The application processes front and side view videos of tennis serves to detect key moments and ball positions.
+An application for analyzing tennis serves using computer vision and pose estimation (OpenCV YOLO and MMPose).
+
+Video demo link: https://youtube.com/shorts/riT4e5XwXgg?feature=share
+
 
 ## Features
 
-- Upload and process front and side view videos of tennis serves
+- Upload and process videos of tennis serves
 - Detect key moments in the serve motion (e.g., ball release, trophy position, impact)
-- Track tennis ball position throughout the serve
+- Track the player's skeleton/pose, tennis ball, and tennis racket position throughout the serve
 - Visualize key moments and ball positions on a timeline
 - Interactive video playback with moment markers
 
@@ -55,46 +58,13 @@ python main.py
 
 2. Open your web browser and navigate to `http://localhost:5000`
 
-3. Upload your front and side view videos of a tennis serve
+3. Upload your 2 videos of tennis serves to compare and analyze
 
 4. Wait for the processing to complete
 
 5. Use the video player controls to navigate through the serve and view key moments
 
-## Project Structure
-
-```
-form-analyzer/
-├── analyzer/
-│   ├── frontend/           # React frontend
-│   │   ├── src/
-│   │   │   ├── components/
-│   │   │   │   ├── VideoUpload.tsx
-│   │   │   │   └── VideoPlayer.tsx
-│   │   │   └── App.tsx
-│   │   └── package.json
-│   ├── main.py            # Flask backend
-│   ├── video_processor.py # Video processing logic
-│   └── key_moment_detector.py # Key moment detection
-├── uploads/               # Temporary storage for uploaded videos
-└── requirements.txt       # Python dependencies
-```
-
-## API Endpoints
-
-- `POST /api/upload`: Upload front and side view videos
-- `GET /api/video/<filename>`: Get processed video file
-- `GET /api/moments/<video_name>`: Get key moments for a video
-- `GET /api/balls/<video_name>`: Get ball detections for a video
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Commit your changes
-4. Push to the branch
-5. Create a Pull Request
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+This project is licensed under the MIT License.
